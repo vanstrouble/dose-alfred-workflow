@@ -1,9 +1,11 @@
-tell application "Amphetamine"
-    if (q = "on") then
+on run argv
+  tell application "Amphetamine"
+    if (item 1 of argv = "on") then
         start new session
-        "Your Mac will be active all the time."
-    else if (q = "off") then
+        -- display dialog "Your Mac will be active all the time."
+    else if (item 1 of argv = "off") then
         end session
-        "Your Mac will sleep then."
+        -- display dialog "Your Mac will sleep then."
     end if
-end tell
+  end tell
+end run
