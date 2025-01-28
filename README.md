@@ -37,3 +37,13 @@ Set Amphetamine to stay awake for a specified number of minutes. Only integer va
 **Keyword:** ams [number of minutes]
 
 Example: `ams 30` will keep your Mac awake for 30 minutes.
+
+### Set Amphetamine to stay awake for a specified number of hours (amh)
+
+<img src="img/amh.png" alt="Alfred set Amphetamine duration in hours image" width="65%"/>
+
+Set Amphetamine to stay awake for a specified number of hours. Only integer values are allowed:
+
+**Keyword:** amh [number of hours]
+
+Example: `amh 2` will keep your Mac awake for 2 hours.
