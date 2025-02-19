@@ -1,7 +1,7 @@
 on run argv
-    set q to item 1 of argv
-    set qMinutes to q * 60
+    set totalMinutes to ((item 1 of argv) * 100 div 100 * 60) + ((item 1 of argv) * 100 mod 100) as integer
+
     tell application "Amphetamine"
-        start new session with options {duration:qMinutes, interval:minutes, displaySleepAllowed:false}
+        start new session with options {duration:totalMinutes, interval:minutes, displaySleepAllowed:false}
     end tell
 end run
