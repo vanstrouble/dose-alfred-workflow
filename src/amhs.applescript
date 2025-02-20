@@ -76,9 +76,5 @@ on run argv
         set durationMinutes to durationMinutes + (24 * 60)
     end if
 
-    if durationMinutes > 0 then
-        tell application "Amphetamine" to start new session with options {duration:durationMinutes, interval:minutes, displaySleepAllowed:true}
-    else
-        log "Error: La hora ingresada ya pasó."
-    end if
+    tell application "Amphetamine" to start new session with options {duration:durationMinutes, interval:minutes, displaySleepAllowed:true}
 end run
