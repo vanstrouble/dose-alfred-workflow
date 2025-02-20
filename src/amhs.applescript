@@ -1,7 +1,14 @@
 on run argv
-    set inputHour to item 1 of argv as integer
-    set inputMinutes to item 2 of argv as integer
-    set ampm to item 3 of argv as string
+    set inputString to argv as string
+
+    set AppleScript's text item delimiters to " "
+    set parts to every text item of inputString
+
+    set inputHour to item 1 of parts as integer
+    set inputMinutes to item 2 of parts as integer
+    set ampm to item 3 of parts as string
+
+    set AppleScript's text item delimiters to ""
 
     if ampm is "pm" and inputHour is not 12 then
         set inputHour to inputHour + 12
