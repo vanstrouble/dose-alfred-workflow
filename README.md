@@ -4,8 +4,10 @@
 
 A simple workflow that integrates with the [Amphetamine app](https://apps.apple.com/us/app/amphetamine/id937984704?mt=12) to keep your Mac awake. This workflow allows you to activate or deactivate Amphetamine and set it to stay awake for a specified number of minutes, all from within Alfred.
 
-- Now available on the Alfred Gallery. Get it [here](https://alfred.app/workflows/vanstrouble/amphetamine-dose/). [v1.2.0].
-- Get the latest release on GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases). [v1.3.0].
+## Install
+
+- Available on the Alfred Gallery. Get it [here](https://alfred.app/workflows/vanstrouble/amphetamine-dose/).
+- You can also download it from GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases).
 
 **This workflow is only for Alfred.app Powerpack users.**
 
