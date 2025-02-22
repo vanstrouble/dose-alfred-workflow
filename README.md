@@ -1,6 +1,6 @@
 # Amphetamine Dose | Alfred Workflow
 
-<img src="img/dose-logo.png" alt="Amphetamine Dose Alfred Workflow Icon" width="250px" align="right"/>
+<img src="img/dose-logo.png" alt="Amphetamine Dose Alfred Workflow Icon" width="125px" align="right"/>
 
 A simple workflow that integrates with the [Amphetamine app](https://apps.apple.com/us/app/amphetamine/id937984704?mt=12) to keep your Mac awake. This workflow allows you to activate or deactivate Amphetamine and set it to stay awake for a specified number of minutes, all from within Alfred.
 
