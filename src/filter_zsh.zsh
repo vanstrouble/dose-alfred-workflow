@@ -1,10 +1,15 @@
 #!/bin/zsh --no-rcs
 
+calculate_end_time() {
+    local minutes=$1
+    date -v+"$minutes"M +"%H:%M"
+}
+
 INPUT="$1"
 STATE=$(osascript -e 'tell application "Amphetamine" to return session is active' 2>/dev/null)
 
 if [[ "$INPUT" =~ ^[0-9]+$ ]]; then
-    END_TIME=$(date -v+"$INPUT"M +"%H:%M")
+    END_TIME=$(calculate_end_time "$INPUT")
 
     echo '{"items":[{"title":"Turn On for '"$INPUT"' minutes","subtitle":"Keep awake until around '"$END_TIME"'","arg":"'"$INPUT"'","icon":{"path":"icon.png"}}]}'
 else
