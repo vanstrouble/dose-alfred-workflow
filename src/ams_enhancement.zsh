@@ -9,9 +9,18 @@ calculate_end_time() {
 # Function to parse the input and calculate the total minutes
 parse_input() {
     local input=("${(@s/ /)1}")  # Split the input into parts
-    if [[ "${#input[@]}" -eq 1 && "${input[1]}" =~ ^[0-9]+$ ]]; then
-        # Format: 20 (only minutes)
-        echo "${input[1]}"
+    if [[ "${#input[@]}" -eq 1 ]]; then
+        if [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
+            # Format: 2h (hours with 'h' suffix)
+            local hours=${input[1]%h}  # Remove the 'h' suffix
+            echo $(( hours * 60 ))
+        elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
+            # Format: 30 (only minutes)
+            echo "${input[1]}"
+        else
+            # Invalid single input
+            echo "0"
+        fi
     elif [[ "${#input[@]}" -eq 2 ]]; then
         if [[ "${input[1]}" =~ ^[0-9]+$ && -z "${input[2]}" ]]; then
             # Format: 1 (hours only, but second number not yet entered)
