@@ -14,8 +14,8 @@ parse_input() {
         echo "${input[1]}"
     elif [[ "${#input[@]}" -eq 2 ]]; then
         if [[ "${input[1]}" =~ ^[0-9]+$ && -z "${input[2]}" ]]; then
-            # Format: ams 1 (hours only, with trailing space)
-            echo $(( input[1] * 60 ))
+            # Format: ams 1 (hours only, but second number not yet entered)
+            echo "${input[1]}"  # Treat as minutes until the second number is entered
         elif [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
             # Format: ams 1 20 (hours and minutes)
             echo $(( input[1] * 60 + input[2] ))
