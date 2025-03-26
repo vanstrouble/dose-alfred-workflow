@@ -6,9 +6,6 @@ if [[ -n "$hotkey_value" ]]; then
     INPUT="$hotkey_value"
 fi
 
-# Debugging
-echo "DEBUG: INPUT='$INPUT', HOTKEY_VALUE='$hotkey_value'" >&2
-
 notification_message=""
 
 if [[ "$INPUT" == "on" ]]; then
