@@ -29,12 +29,28 @@ parse_input() {
     fi
 }
 
+# Function to format the duration in hours and minutes
+format_duration() {
+    local total_minutes=$1
+    local hours=$(( total_minutes / 60 ))
+    local minutes=$(( total_minutes % 60 ))
+
+    if [[ "$hours" -gt 0 && "$minutes" -gt 0 ]]; then
+        echo "$hours hour(s) $minutes minute(s)"
+    elif [[ "$hours" -gt 0 ]]; then
+        echo "$hours hour(s)"
+    else
+        echo "$minutes minute(s)"
+    fi
+}
+
 # Function to generate Alfred JSON output
 generate_output() {
     local total_minutes=$1
     if [[ "$total_minutes" -gt 0 ]]; then
         local end_time=$(calculate_end_time "$total_minutes")
-        echo '{"items":[{"title":"Active for '"$total_minutes"' minutes","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$total_minutes"'","icon":{"path":"icon.png"}}]}'
+        local formatted_duration=$(format_duration "$total_minutes")
+        echo '{"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$total_minutes"'","icon":{"path":"icon.png"}}]}'
     fi
 }
 
