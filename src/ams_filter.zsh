@@ -12,11 +12,20 @@ parse_input() {
     if [[ "${#input[@]}" -eq 1 && "${input[1]}" =~ ^[0-9]+$ ]]; then
         # Format: ams 30 (only minutes)
         echo "${input[1]}"
-    elif [[ "${#input[@]}" -eq 2 && "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
-        # Format: ams 1 20 (hours and minutes)
-        echo $(( input[1] * 60 + input[2] ))
+    elif [[ "${#input[@]}" -eq 2 ]]; then
+        if [[ "${input[1]}" =~ ^[0-9]+$ && -z "${input[2]}" ]]; then
+            # Format: ams 1 (hours only, with trailing space)
+            echo $(( input[1] * 60 ))
+        elif [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
+            # Format: ams 1 20 (hours and minutes)
+            echo $(( input[1] * 60 + input[2] ))
+        else
+            # Invalid second part
+            echo "0"
+        fi
     else
-        echo "0"  # Return 0 if the format is incorrect
+        # Invalid input or incomplete
+        echo "0"
     fi
 }
 
