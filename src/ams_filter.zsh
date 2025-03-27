@@ -13,6 +13,7 @@ calculate_end_time() {
 }
 
 # Function to parse the input and calculate the total minutes
+# Function to parse the input and calculate the total minutes
 parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
     local current_hour=$(date +"%H")
@@ -35,6 +36,21 @@ parse_input() {
             fi
 
             local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            echo "$total_minutes"
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1})$ ]]; then
+            # Nuevo caso para manejar entradas parciales como 11:1
+            local hour=${match[1]}
+            local partial_minute=${match[2]}
+
+            # Convertir la hora considerando formato 12h si es necesario
+            hour=$(echo "$hour" | sed 's/^0*//')
+            if [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
+                hour=$(( hour + 12 ))
+            fi
+
+            # La entrada parcial se considera 0 en los minutos faltantes
+            local total_minutes=$(( (hour * 60) - (current_hour * 60 + current_minute) ))
             (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{2})([aApP][mM])?$ ]]; then
