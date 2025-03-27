@@ -37,8 +37,37 @@ parse_input() {
             local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
             (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
+            # New case to handle inputs like 1p, 1pm, 8a, 8am
+            local hour=${match[1]}
+            local partial_am=${match[2]:-""}
+            local complete_ampm=${match[3]:-""}
+
+            # Convert the hour considering 12h format and AM/PM
+            hour=$(echo "$hour" | sed 's/^0*//')
+            local minute=0
+
+            # Adjust hour based on partial or complete AM/PM input
+            if [[ -n "$partial_am" ]]; then
+                if [[ "$partial_am" =~ [pP] && "$hour" -lt 12 ]]; then
+                    hour=$(( hour + 12 ))
+                elif [[ "$partial_am" =~ [aA] && "$hour" -eq 12 ]]; then
+                    hour=0
+                fi
+            elif [[ -z "$partial_am" && -n "$complete_ampm" ]]; then
+                # If only completed with 'm' (defaults to system format)
+                if [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
+                    hour=$(( hour + 12 ))
+                fi
+            elif [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
+                hour=$(( hour + 12 ))
+            fi
+
+            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            echo "$total_minutes"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?$ ]]; then
-            # New case to handle flexible partial inputs
+            # Case to handle inputs like 11:10, 11:10a, 11:10p
             local hour=${match[1]}
             local partial_minute=${match[2]}
             local partial_ampm=${match[3]:-""}
