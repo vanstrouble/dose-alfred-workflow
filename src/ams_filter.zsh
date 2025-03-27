@@ -1,5 +1,11 @@
 #!/bin/zsh --no-rcs
 
+# Function to detect system time format (12h or 24h)
+detect_time_format() {
+    local time_format=$(date +%X | grep -E "AM|PM" &>/dev/null && echo "12" || echo "24")
+    echo "$time_format"
+}
+
 # Function to calculate the end time based on the given minutes
 calculate_end_time() {
     local minutes=$1
@@ -8,32 +14,60 @@ calculate_end_time() {
 
 # Function to parse the input and calculate the total minutes
 parse_input() {
-    local input=("${(@s/ /)1}")  # Split the input into parts
+    local input=(${(@s/ /)1})  # Split the input into parts
+    local current_hour=$(date +"%H")
+    local current_minute=$(date +"%M")
+    local system_format=$(detect_time_format)
+
     if [[ "${#input[@]}" -eq 1 ]]; then
         if [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
-            # Format: 2h (hours with 'h' suffix)
-            local hours=${input[1]%h}  # Remove the 'h' suffix
+            local hours=${input[1]%h}
             echo $(( hours * 60 ))
         elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
-            # Format: 30 (only minutes)
             echo "${input[1]}"
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
+            local hour=${match[1]}
+            local minute=0
+            hour=$(echo "$hour" | sed 's/^0*//')
+
+            if [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
+                hour=$(( hour + 12 ))
+            fi
+
+            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            echo "$total_minutes"
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{2})([aApP][mM])?$ ]]; then
+            local hour=${match[1]}
+            local minute=${match[2]}
+            local ampm=${match[3]:-""}
+
+            if [[ -n "$ampm" ]]; then
+                hour=$(echo "$hour" | sed 's/^0*//')
+                if [[ "$ampm" =~ [pP][mM] && "$hour" -lt 12 ]]; then
+                    hour=$(( hour + 12 ))
+                elif [[ "$ampm" =~ [aA][mM] && "$hour" -eq 12 ]]; then
+                    hour=0
+                fi
+            elif [[ "$system_format" -eq 12 ]]; then
+                if [[ "$hour" -lt "$current_hour" ]]; then
+                    hour=$(( hour + 12 ))
+                fi
+            fi
+
+            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            echo "$total_minutes"
         else
-            # Invalid single input
             echo "0"
         fi
     elif [[ "${#input[@]}" -eq 2 ]]; then
-        if [[ "${input[1]}" =~ ^[0-9]+$ && -z "${input[2]}" ]]; then
-            # Format: 1 (hours only, but second number not yet entered)
-            echo "${input[1]}"  # Treat as minutes until the second number is entered
-        elif [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
-            # Format: 1 20 (hours and minutes)
+        if [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
             echo $(( input[1] * 60 + input[2] ))
         else
-            # Invalid second part
             echo "0"
         fi
     else
-        # Invalid input or incomplete
         echo "0"
     fi
 }
