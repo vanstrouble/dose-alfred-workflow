@@ -13,7 +13,6 @@ calculate_end_time() {
 }
 
 # Function to parse the input and calculate the total minutes
-# Function to parse the input and calculate the total minutes
 parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
     local current_hour=$(date +"%H")
@@ -38,19 +37,35 @@ parse_input() {
             local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
             (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1})$ ]]; then
-            # Nuevo caso para manejar entradas parciales como 11:1
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?$ ]]; then
+            # New case to handle flexible partial inputs
             local hour=${match[1]}
             local partial_minute=${match[2]}
+            local partial_ampm=${match[3]:-""}
 
-            # Convertir la hora considerando formato 12h si es necesario
+            # Convert the hour considering 12h format and AM/PM
             hour=$(echo "$hour" | sed 's/^0*//')
-            if [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
+
+            # Adjust hour based on partial AM/PM input
+            if [[ -n "$partial_ampm" ]]; then
+                if [[ "$partial_ampm" =~ [pP] && "$hour" -lt 12 ]]; then
+                    hour=$(( hour + 12 ))
+                elif [[ "$partial_ampm" =~ [aA] && "$hour" -eq 12 ]]; then
+                    hour=0
+                fi
+            elif [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
                 hour=$(( hour + 12 ))
             fi
 
-            # La entrada parcial se considera 0 en los minutos faltantes
-            local total_minutes=$(( (hour * 60) - (current_hour * 60 + current_minute) ))
+            # Complete minutes if partial
+            local minute=0
+            if [[ "${#partial_minute}" -eq 1 ]]; then
+                minute=0
+            else
+                minute=$partial_minute
+            fi
+
+            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
             (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{2})([aApP][mM])?$ ]]; then
