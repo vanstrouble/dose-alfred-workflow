@@ -19,12 +19,19 @@ get_nearest_future_time() {
     local current_hour=$3
     local current_minute=$4
 
-    # Calculate minutes for AM (standard interpretation)
-    local am_total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-
-    # Calculate minutes for PM (add 12 hours if hour < 12)
+    # Special handling for hour 12
+    local am_hour=$hour
     local pm_hour=$hour
-    (( hour < 12 )) && pm_hour=$(( hour + 12 ))
+
+    # For 12-hour format conversion
+    if [[ $hour -eq 12 ]]; then
+        am_hour=0  # 12 AM is actually 0 in 24-hour format
+    elif [[ $hour -lt 12 ]]; then
+        pm_hour=$(( hour + 12 ))
+    fi
+
+    # Calculate minutes for AM and PM interpretations
+    local am_total_minutes=$(( (am_hour * 60 + minute) - (current_hour * 60 + current_minute) ))
     local pm_total_minutes=$(( (pm_hour * 60 + minute) - (current_hour * 60 + current_minute) ))
 
     # If AM time is in the past and PM time is in future, use PM
