@@ -12,6 +12,33 @@ calculate_end_time() {
     date -v+"$minutes"M +"%H:%M"
 }
 
+# Function to get the nearest future time based on input hour and minute
+get_nearest_future_time() {
+    local hour=$1
+    local minute=$2
+    local current_hour=$3
+    local current_minute=$4
+
+    # Calculate minutes for AM (standard interpretation)
+    local am_total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+
+    # Calculate minutes for PM (add 12 hours if hour < 12)
+    local pm_hour=$hour
+    (( hour < 12 )) && pm_hour=$(( hour + 12 ))
+    local pm_total_minutes=$(( (pm_hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+
+    # If AM time is in the past and PM time is in future, use PM
+    if [[ $am_total_minutes -lt 0 && $pm_total_minutes -gt 0 ]]; then
+        echo $pm_total_minutes
+    # If AM time is in the future, use that
+    elif [[ $am_total_minutes -gt 0 ]]; then
+        echo $am_total_minutes
+    # If both are in the past, roll over to tomorrow
+    else
+        echo $(( am_total_minutes + 1440 ))
+    fi
+}
+
 # Function to parse the input and calculate the total minutes
 parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
@@ -30,12 +57,21 @@ parse_input() {
             local minute=0
             hour=$(echo "$hour" | sed 's/^0*//')
 
-            if [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
-                hour=$(( hour + 12 ))
+            # Use nearest future time logic
+            if [[ -n "$ampm" ]]; then
+                # Process explicit AM/PM if provided
+                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
+                    hour=$(( hour + 12 ))
+                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
+                    hour=0
+                fi
+                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            else
+                # Use new function to get nearest future time
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
 
-            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
             # New case to handle inputs like 1p, 1pm, 8a, 8am
@@ -43,28 +79,23 @@ parse_input() {
             local partial_am=${match[2]:-""}
             local complete_ampm=${match[3]:-""}
 
-            # Convert the hour considering 12h format and AM/PM
             hour=$(echo "$hour" | sed 's/^0*//')
             local minute=0
 
-            # Adjust hour based on partial or complete AM/PM input
+            # If AM/PM is provided, use that
             if [[ -n "$partial_am" ]]; then
                 if [[ "$partial_am" =~ [pP] && "$hour" -lt 12 ]]; then
                     hour=$(( hour + 12 ))
                 elif [[ "$partial_am" =~ [aA] && "$hour" -eq 12 ]]; then
                     hour=0
                 fi
-            elif [[ -z "$partial_am" && -n "$complete_ampm" ]]; then
-                # If only completed with 'm' (defaults to system format)
-                if [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
-                    hour=$(( hour + 12 ))
-                fi
-            elif [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
-                hour=$(( hour + 12 ))
+                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            else
+                # Use new function to get nearest future time
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
 
-            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?$ ]]; then
             # Case to handle inputs like 11:10, 11:10a, 11:10p
@@ -72,19 +103,7 @@ parse_input() {
             local partial_minute=${match[2]}
             local partial_ampm=${match[3]:-""}
 
-            # Convert the hour considering 12h format and AM/PM
             hour=$(echo "$hour" | sed 's/^0*//')
-
-            # Adjust hour based on partial AM/PM input
-            if [[ -n "$partial_ampm" ]]; then
-                if [[ "$partial_ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$partial_ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
-            elif [[ "$system_format" -eq 12 && "$hour" -lt "$current_hour" ]]; then
-                hour=$(( hour + 12 ))
-            fi
 
             # Complete minutes if partial
             local minute=0
@@ -94,29 +113,42 @@ parse_input() {
                 minute=$partial_minute
             fi
 
-            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            # If AM/PM is provided, use that
+            if [[ -n "$partial_ampm" ]]; then
+                if [[ "$partial_ampm" =~ [pP] && "$hour" -lt 12 ]]; then
+                    hour=$(( hour + 12 ))
+                elif [[ "$partial_ampm" =~ [aA] && "$hour" -eq 12 ]]; then
+                    hour=0
+                fi
+                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            else
+                # Use new function to get nearest future time
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+            fi
+
             echo "$total_minutes"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{2})([aApP][mM])?$ ]]; then
             local hour=${match[1]}
             local minute=${match[2]}
             local ampm=${match[3]:-""}
 
+            hour=$(echo "$hour" | sed 's/^0*//')
+
+            # If AM/PM is provided, use that
             if [[ -n "$ampm" ]]; then
-                hour=$(echo "$hour" | sed 's/^0*//')
                 if [[ "$ampm" =~ [pP][mM] && "$hour" -lt 12 ]]; then
                     hour=$(( hour + 12 ))
                 elif [[ "$ampm" =~ [aA][mM] && "$hour" -eq 12 ]]; then
                     hour=0
                 fi
-            elif [[ "$system_format" -eq 12 ]]; then
-                if [[ "$hour" -lt "$current_hour" ]]; then
-                    hour=$(( hour + 12 ))
-                fi
+                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+            else
+                # Use new function to get nearest future time
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
 
-            local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-            (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
             echo "$total_minutes"
         else
             echo "0"
