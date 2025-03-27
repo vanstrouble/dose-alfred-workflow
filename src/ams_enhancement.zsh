@@ -9,7 +9,16 @@ detect_time_format() {
 # Function to calculate the end time based on the given minutes
 calculate_end_time() {
     local minutes=$1
-    date -v+"$minutes"M +"%H:%M"
+
+    # Check Alfred variable for time format preference
+    # 'a' is 12-hour format, 'b' is 24-hour format
+    if [[ "${alfred_time_format:-a}" == "a" ]]; then
+        # 12-hour format with AM/PM
+        date -v+"$minutes"M +"%l:%M %p" | sed 's/^ //'
+    else
+        # 24-hour format
+        date -v+"$minutes"M +"%H:%M"
+    fi
 }
 
 # Function to get the nearest future time based on input hour and minute
