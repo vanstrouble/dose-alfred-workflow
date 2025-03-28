@@ -2,20 +2,26 @@
 
 INPUT="$1"
 
+# Use hotkey_value if provided
 if [[ -n "$hotkey_value" ]]; then
     INPUT="$hotkey_value"
 fi
 
-notification_message=""
+# Default value for display_sleep_allow if not set
+display_sleep_allow=${display_sleep_allow:-false}
 
-if [[ "$INPUT" == "on" ]]; then
-    osascript -e "tell application \"Amphetamine\" to start new session"
-    notification_message="Amphetamine activated."
-elif [[ "$INPUT" == "off" ]]; then
+if [[ "$INPUT" == "off" ]]; then
     osascript -e "tell application \"Amphetamine\" to end session"
-    notification_message="Amphetamine deactivated."
+    echo "Amphetamine deactivated."
+elif [[ "$INPUT" == "on" ]]; then
+    # Use display_sleep_allow parameter only when turning on
+    osascript -e "tell application \"Amphetamine\" to start new session with options {displaySleepAllowed:$display_sleep_allow}"
+
+    if [[ "$display_sleep_allow" == "true" ]]; then
+        echo "Amphetamine activated (display can sleep)."
+    else
+        echo "Amphetamine activated."
+    fi
 else
     exit 1
 fi
-
-echo "$notification_message"

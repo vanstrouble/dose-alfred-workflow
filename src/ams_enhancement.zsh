@@ -170,7 +170,9 @@ parse_input() {
 # Function to start an Amphetamine session
 start_amphetamine_session() {
     local total_minutes=$1
-    osascript -e "tell application \"Amphetamine\" to start new session with options {duration:$total_minutes, interval:minutes, displaySleepAllowed:false}" || {
+    local allow_display_sleep=$2
+
+    osascript -e "tell application \"Amphetamine\" to start new session with options {duration:$total_minutes, interval:minutes, displaySleepAllowed:$allow_display_sleep}" || {
         echo "Error: Failed to start Amphetamine session."
         exit 1
     }
@@ -178,11 +180,19 @@ start_amphetamine_session() {
 
 # Main function
 main() {
+    # Default value for display_sleep_allow if not set
+    display_sleep_allow=${display_sleep_allow:-false}
+
     local total_minutes=$(parse_input "$INPUT")
     if [[ "$total_minutes" -gt 0 ]]; then
         local end_time=$(calculate_end_time "$total_minutes")
-        start_amphetamine_session "$total_minutes"
-        echo "Keeping awake until around $end_time."
+        start_amphetamine_session "$total_minutes" "$display_sleep_allow"
+
+        if [[ "$display_sleep_allow" == "true" ]]; then
+            echo "Keeping awake until around $end_time. (Display can sleep)"
+        else
+            echo "Keeping awake until around $end_time."
+        fi
     else
         echo "Error: Invalid input. Please provide a valid duration."
         exit 1
