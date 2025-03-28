@@ -11,63 +11,40 @@ A simple workflow that integrates with the [Amphetamine app](https://apps.apple.
 
 ## Getting Started
 
-### Turn on Amphetamine (amp on)
+### keep your Mac awake (dose)
 
-<img src="img/amp-on.png" alt="Alfred turn on Amphetamine image" width="65%"/>
+<img src="img/dose.png" alt="Alfred toggle Amphetamine image" width="550"/>
 
-Turn on Amphetamine to keep your Mac awake:
+Use the `dose` keyword to toggle Amphetamine on or off, preventing macOS from sleeping.
 
-**Keyword:** amp on
+**Keyword:** `dose`
 
-### Turn off Amphetamine (amp off)
+If you hold the Command key while using the `dose` command, the session will allow the display to sleep.
 
-<img src="img/amp-off.png" alt="Alfred turn off Amphetamine image" width="65%"/>
+### One command for everything (ams)
 
-Turn off Amphetamine to stop keeping your Mac awake.
+<img src="img/ams-pro.png" alt="Alfred set Amphetamine duration image" width="550"/>
 
-**Keyword:** amp off
+The `ams` command allows you to set Amphetamine to keep your Mac awake for a specific duration or until a specific time. It supports natural input formats for minutes, hours, and specific times, making it flexible and easy to use.
 
-### Set Amphetamine to stay awake for a specified number of minutes (ams)
+**Keyword:** `ams [duration or time]`
 
-<img src="img/ams.png" alt="Alfred set Amphetamine duration image" width="65%"/>
+If you hold the Command key while using the `ams` command, the session will allow the display to sleep.
 
-Set Amphetamine to stay awake for a specified number of minutes. Only integer values are allowed.
+#### Examples:
 
-**Keyword:** ams [number of minutes]
+| Command    | Description                                    |
+|------------|------------------------------------------------|
+| `ams 15`   | Keeps your Mac awake for 15 minutes.           |
+| `ams 1 30` | Keeps your Mac awake for 1 hour and 30 minutes.|
+| `ams 2h`   | Keeps your Mac awake for 2 hours.              |
+| `ams 8am`  | Keeps your Mac awake until 8:00 AM.            |
+| `ams 9:30` | Keeps your Mac awake until the next 9:30.      |
+| `ams 11:40am` | Keeps your Mac awake until 11:40 AM.        |
 
-Example:
+The `ams` command supports both 12-hour (AM/PM) and 24-hour time formats.
 
-- `ams 30` will keep your Mac awake for 30 minutes.
-
-### Set Amphetamine to stay awake for a specified number of hours (amh)
-
-<img src="img/amh.png" alt="Alfred set Amphetamine duration in hours image" width="65%"/>
-
-Set Amphetamine to stay awake for a specified number of hours. This command supports both whole hours and hours with minutes.
-
-**Keyword:** amh [number of hours] [optional minutes]
-
-Examples:
-
-- `amh 3` will keep your Mac awake for 2 hours.
-- `amh 6 30` will keep your Mac awake for 6 hours and 30 minutes.
-- `amh 1.5` will keep your Mac awake for 1 hour and 30 minutes.
-
-### Keep your Mac awake until a specific time (amh + Option key)
-
-<img src="img/amhs.png" alt="Alfred set Amphetamine until specific time image" width="65%"/>
-
-Set Amphetamine to keep your Mac awake until a specific time. This mode is activated by holding down the Option key while using the amh command.
-
-**Keyword:** amh [target hour] [optional minutes] [optional am/pm]
-
-Examples:
-
-- `amh 12 30` (while holding Option) will keep your Mac awake until 12:30 (AM or PM, inferred from current time).
-- `amh 5 pm` (while holding Option) will keep your Mac awake until 5 PM.
-- `amh 2 15 am` (while holding Option) will keep your Mac awake until 2:15 AM.
-
-If no AM/PM is provided, the script will infer it based on the current time to avoid confusion. (Only supports the 12-hour format).
+This single command replaces the previous `amh` and `amh + Option` commands, simplifying the workflow while adding more flexibility.
 
 ---
 
