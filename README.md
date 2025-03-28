@@ -40,11 +40,15 @@ If you hold the Command key while using the `ams` command, the session will allo
 | `ams 2h`   | Keeps your Mac awake for 2 hours.              |
 | `ams 8am`  | Keeps your Mac awake until 8:00 AM.            |
 | `ams 9:30` | Keeps your Mac awake until the next 9:30.      |
-| `ams 11:40am` | Keeps your Mac awake until 11:40 AM.        |
+| `ams 11:40pm` | Keeps your Mac awake until 11:40 PM.        |
 
 The `ams` command supports both 12-hour (AM/PM) and 24-hour time formats.
 
 This single command replaces the previous `amh` and `amh + Option` commands, simplifying the workflow while adding more flexibility.
+
+### Customization
+
+Both `dose` and `ams` commands can be customized in the workflow settings. You can modify their keywords or behavior to better suit your needs.
 
 ---
 
