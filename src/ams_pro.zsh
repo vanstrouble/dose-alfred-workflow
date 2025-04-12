@@ -181,41 +181,37 @@ start_amphetamine_session() {
     }
 }
 
+# Function to handle indefinite session
+start_indefinite_session() {
+    local allow_display_sleep=$1
+
+    osascript -e "tell application \"Amphetamine\" to start new session with options {displaySleepAllowed:$allow_display_sleep}" || {
+        echo "Error: Failed to start Amphetamine session."
+        exit 1
+    }
+
+    if [[ "$allow_display_sleep" == "true" ]]; then
+        echo "Keeping awake indefinitely. (Display can sleep)"
+    else
+        echo "Keeping awake indefinitely."
+    fi
+}
+
 # Main function
 main() {
     # Default value for display_sleep_allow if not set
     display_sleep_allow=${display_sleep_allow:-false}
 
-    # Check direct input for "indefinite"
+    # Check direct input for "indefinite" or parse the input
     if [[ "$INPUT" == "indefinite" ]]; then
-        # Start indefinite session
-        osascript -e "tell application \"Amphetamine\" to start new session with options {displaySleepAllowed:$display_sleep_allow}" || {
-            echo "Error: Failed to start Amphetamine session."
-            exit 1
-        }
-
-        if [[ "$display_sleep_allow" == "true" ]]; then
-            echo "Keeping awake indefinitely. (Display can sleep)"
-        else
-            echo "Keeping awake indefinitely."
-        fi
+        start_indefinite_session "$display_sleep_allow"
         exit 0
     fi
 
     local total_minutes=$(parse_input "$INPUT")
 
     if [[ "$total_minutes" == "indefinite" ]]; then
-        # Start indefinite session
-        osascript -e "tell application \"Amphetamine\" to start new session with options {displaySleepAllowed:$display_sleep_allow}" || {
-            echo "Error: Failed to start Amphetamine session."
-            exit 1
-        }
-
-        if [[ "$display_sleep_allow" == "true" ]]; then
-            echo "Keeping awake indefinitely. (Display can sleep)"
-        else
-            echo "Keeping awake indefinitely."
-        fi
+        start_indefinite_session "$display_sleep_allow"
     elif [[ "$total_minutes" -gt 0 ]]; then
         local end_time=$(calculate_end_time "$total_minutes")
         start_amphetamine_session "$total_minutes" "$display_sleep_allow"

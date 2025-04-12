@@ -202,7 +202,7 @@ format_duration() {
 generate_output() {
     local total_minutes=$1
     if [[ "$total_minutes" == "indefinite" ]]; then
-        echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep awake indefinitely","arg":"indefinite","icon":{"path":"icon.png"}}]}'
+        echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep your Mac awake until manually disabled","arg":"indefinite","icon":{"path":"icon.png"}}]}'
     elif [[ "$total_minutes" -gt 0 ]]; then
         local end_time=$(calculate_end_time "$total_minutes")
         local formatted_duration=$(format_duration "$total_minutes")
