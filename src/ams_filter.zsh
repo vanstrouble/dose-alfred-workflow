@@ -63,7 +63,10 @@ parse_input() {
     local system_format=$(detect_time_format)
 
     if [[ "${#input[@]}" -eq 1 ]]; then
-        if [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
+        if [[ "${input[1]}" == "i" ]]; then
+            # Special value for indefinite mode
+            echo "indefinite"
+        elif [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
             local hours=${input[1]%h}
             echo $(( hours * 60 ))
         elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
@@ -198,10 +201,14 @@ format_duration() {
 # Function to generate Alfred JSON output
 generate_output() {
     local total_minutes=$1
-    if [[ "$total_minutes" -gt 0 ]]; then
+    if [[ "$total_minutes" == "indefinite" ]]; then
+        echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep awake indefinitely","arg":"indefinite","icon":{"path":"icon.png"}}]}'
+    elif [[ "$total_minutes" -gt 0 ]]; then
         local end_time=$(calculate_end_time "$total_minutes")
         local formatted_duration=$(format_duration "$total_minutes")
         echo '{"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$total_minutes"'","icon":{"path":"icon.png"}}]}'
+    else
+        echo '{"items":[{"title":"Invalid input","subtitle":"Please provide a valid time format","arg":"0","icon":{"path":"icon.png"}}]}'
     fi
 }
 
