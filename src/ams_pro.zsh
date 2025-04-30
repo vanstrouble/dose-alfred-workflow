@@ -27,9 +27,14 @@ get_nearest_future_time() {
     local minute=$2
     local current_hour=$3
     local current_minute=$4
+    local exact_hour=${5:-false}  # New optional parameter
+
+    # For exact hours, ignore the current minutes
+    local effective_current_minute=$current_minute
+    [[ "$exact_hour" == "true" && "$minute" -eq 0 ]] && effective_current_minute=0
 
     # Calculate current time in minutes since midnight (once instead of twice)
-    local current_total=$(( current_hour * 60 + current_minute ))
+    local current_total=$(( current_hour * 60 + effective_current_minute ))
 
     # Special handling for hour 12 and conversion to AM/PM using shorter syntax
     local am_hour=$hour
@@ -75,14 +80,16 @@ parse_input() {
             echo "${input[1]}"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
             # Format: 8 (hour only)
-            local hour=${input[1]}
+            local hour=${match[1]}
             local minute=0
-            # Use parameter expansion instead of sed
+
+            # Parameter expansion is more efficient than sed
             hour=${hour#0}
 
-            # Use nearest future time logic
-            local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+            # Pass true as the fifth parameter to indicate exact hour
+            local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute" "true")
             echo "$total_minutes"
+            return
         elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
             # Format: 8a, 8am, 8p, 8pm
             local hour=${input[1]}
@@ -109,8 +116,8 @@ parse_input() {
             else
                 # If no AM/PM specified, use nearest future time
                 hour=${hour#0}
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
-                echo "$total_minutes"
+                # Pass true as the fifth parameter
+                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute" "true")
             fi
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?([mM])?$ ]]; then
             # Format: 8:30, 8:30a, 8:30am, 8:30p, 8:30pm
