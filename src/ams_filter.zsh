@@ -1,11 +1,5 @@
 #!/bin/zsh --no-rcs
 
-# Function to detect system time format (12h or 24h)
-detect_time_format() {
-    local time_format=$(date +%X | grep -E "AM|PM" &>/dev/null && echo "12" || echo "24")
-    echo "$time_format"
-}
-
 # Function to calculate the end time based on the given minutes
 calculate_end_time() {
     local minutes=$1
@@ -60,120 +54,99 @@ parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
     local current_hour=$(date +"%H")
     local current_minute=$(date +"%M")
-    local system_format=$(detect_time_format)
 
     if [[ "${#input[@]}" -eq 1 ]]; then
         if [[ "${input[1]}" == "i" ]]; then
             # Special value for indefinite mode
             echo "indefinite"
+            return
         elif [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
-            local hours=${input[1]%h}
-            echo $(( hours * 60 ))
+            # Use parameter expansion instead of separate variable
+            echo $(( ${input[1]%h} * 60 ))
+            return
         elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
+            # Direct number input (minutes)
             echo "${input[1]}"
+            return
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
+            # Format: 8 (hour only)
             local hour=${match[1]}
             local minute=0
-            hour=$(echo "$hour" | sed 's/^0*//')
 
-            # Use nearest future time logic
+            # Parameter expansion is more efficient than sed
+            hour=${hour#0}
+
+            # No ampm defined here, use nearest future time logic directly
+            local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+            echo "$total_minutes"
+            return
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
+            # Format: 1p, 1pm, 8a, 8am
+            local hour=${match[1]}
+            local ampm=${match[2]:-""}
+
+            # Parameter expansion instead of sed
+            hour=${hour#0}
+            local minute=0
+
             if [[ -n "$ampm" ]]; then
-                # Process explicit AM/PM if provided
+                # Process explicit AM/PM
                 if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
                     hour=$(( hour + 12 ))
                 elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
                     hour=0
                 fi
-                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+
+                # Calculate time difference once
+                local target_total=$(( hour * 60 + minute ))
+                local current_total=$(( current_hour * 60 + current_minute ))
+                local total_minutes=$(( target_total - current_total ))
                 (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+                echo "$total_minutes"
             else
-                # Use new function to get nearest future time
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                # Use function for nearest future time calculation
+                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
-
-            echo "$total_minutes"
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
-            # New case to handle inputs like 1p, 1pm, 8a, 8am
-            local hour=${match[1]}
-            local partial_am=${match[2]:-""}
-            local complete_ampm=${match[3]:-""}
-
-            hour=$(echo "$hour" | sed 's/^0*//')
-            local minute=0
-
-            # If AM/PM is provided, use that
-            if [[ -n "$partial_am" ]]; then
-                if [[ "$partial_am" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$partial_am" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
-                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-            else
-                # Use new function to get nearest future time
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
-            fi
-
-            echo "$total_minutes"
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?$ ]]; then
-            # Case to handle inputs like 11:10, 11:10a, 11:10p
-            local hour=${match[1]}
-            local partial_minute=${match[2]}
-            local partial_ampm=${match[3]:-""}
-
-            hour=$(echo "$hour" | sed 's/^0*//')
-
-            # Complete minutes if partial
-            local minute=0
-            if [[ "${#partial_minute}" -eq 1 ]]; then
-                minute=0
-            else
-                minute=$partial_minute
-            fi
-
-            # If AM/PM is provided, use that
-            if [[ -n "$partial_ampm" ]]; then
-                if [[ "$partial_ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$partial_ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
-                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-            else
-                # Use new function to get nearest future time
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
-            fi
-
-            echo "$total_minutes"
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{2})([aApP][mM])?$ ]]; then
+            return
+        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?([mM])?$ ]]; then
+            # Format: 8:30, 8:30a, 8:30am, 8:30p, 8:30pm
             local hour=${match[1]}
             local minute=${match[2]}
             local ampm=${match[3]:-""}
 
-            hour=$(echo "$hour" | sed 's/^0*//')
+            # Parameter expansion instead of sed
+            hour=${hour#0}
 
-            # If AM/PM is provided, use that
+            # Handle single digit minute
+            [[ "${#minute}" -eq 1 ]] && minute=0${minute}
+
             if [[ -n "$ampm" ]]; then
-                if [[ "$ampm" =~ [pP][mM] && "$hour" -lt 12 ]]; then
+                # Process explicit AM/PM
+                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
                     hour=$(( hour + 12 ))
-                elif [[ "$ampm" =~ [aA][mM] && "$hour" -eq 12 ]]; then
+                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
                     hour=0
                 fi
-                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-            else
-                # Use new function to get nearest future time
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
-            fi
 
-            echo "$total_minutes"
+                # Calculate time difference once
+                local target_total=$(( hour * 60 + minute ))
+                local current_total=$(( current_hour * 60 + current_minute ))
+                local total_minutes=$(( target_total - current_total ))
+                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
+                echo "$total_minutes"
+            else
+                # Use function for nearest future time
+                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+            fi
+            return
         else
+            # Invalid single input
             echo "0"
+            return
         fi
     elif [[ "${#input[@]}" -eq 2 ]]; then
         if [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
+            # Format: 1 20 (hours and minutes)
             echo $(( input[1] * 60 + input[2] ))
         else
             echo "0"
