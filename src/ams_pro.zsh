@@ -68,7 +68,7 @@ parse_input() {
             echo "indefinite"
         elif [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
             # Format: 2h (hours with 'h' suffix)
-            local hours=${input[1]%h}  # Remove the 'h' suffix
+            local hours=${input[1]%h}  # Remove the 'h' suffix with parameter expansion
             echo $(( hours * 60 ))
         elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
             # Format: 30 (only minutes)
@@ -77,7 +77,8 @@ parse_input() {
             # Format: 8 (hour only)
             local hour=${input[1]}
             local minute=0
-            hour=$(echo "$hour" | sed 's/^0*//')
+            # Use parameter expansion instead of sed
+            hour=${hour#0}
 
             # Use nearest future time logic
             local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
@@ -92,7 +93,8 @@ parse_input() {
                 hour=${BASH_REMATCH[1]}
                 local ampm=${BASH_REMATCH[2]}
 
-                hour=$(echo "$hour" | sed 's/^0*//')
+                # Use parameter expansion instead of sed
+                hour=${hour#0}
 
                 # Process explicit AM/PM
                 if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
@@ -106,7 +108,7 @@ parse_input() {
                 echo "$total_minutes"
             else
                 # If no AM/PM specified, use nearest future time
-                hour=$(echo "$hour" | sed 's/^0*//')
+                hour=${hour#0}
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
                 echo "$total_minutes"
             fi
@@ -123,7 +125,8 @@ parse_input() {
                 hour=${BASH_REMATCH[1]}
                 minute=${BASH_REMATCH[2]}
 
-                hour=$(echo "$hour" | sed 's/^0*//')
+                # Use parameter expansion instead of sed
+                hour=${hour#0}
 
                 # Use nearest future time logic
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
@@ -134,7 +137,8 @@ parse_input() {
                 minute=${BASH_REMATCH[2]}
                 ampm=${BASH_REMATCH[3]}
 
-                hour=$(echo "$hour" | sed 's/^0*//')
+                # Use parameter expansion instead of sed
+                hour=${hour#0}
 
                 # Process explicit AM/PM
                 if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
@@ -154,10 +158,7 @@ parse_input() {
             echo "0"
         fi
     elif [[ "${#input[@]}" -eq 2 ]]; then
-        if [[ "${input[1]}" =~ ^[0-9]+$ && -z "${input[2]}" ]]; then
-            # Format: 1 (hours only, but second number not yet entered)
-            echo $(( input[1] * 60 ))
-        elif [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
+        if [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
             # Format: 1 20 (hours and minutes)
             echo $(( input[1] * 60 + input[2] ))
         else
