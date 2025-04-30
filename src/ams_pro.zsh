@@ -28,30 +28,30 @@ get_nearest_future_time() {
     local current_hour=$3
     local current_minute=$4
 
-    # Special handling for hour 12
+    # Calculate current time in minutes since midnight (once instead of twice)
+    local current_total=$(( current_hour * 60 + current_minute ))
+
+    # Special handling for hour 12 and conversion to AM/PM using shorter syntax
     local am_hour=$hour
     local pm_hour=$hour
-
-    # For 12-hour format conversion
-    if [[ $hour -eq 12 ]]; then
-        am_hour=0  # 12 AM is actually 0 in 24-hour format
-    elif [[ $hour -lt 12 ]]; then
-        pm_hour=$(( hour + 12 ))
-    fi
+    [[ $hour -eq 12 ]] && am_hour=0  # 12 AM is actually 0 in 24-hour format
+    [[ $hour -lt 12 ]] && pm_hour=$(( hour + 12 ))
 
     # Calculate minutes for AM and PM interpretations
-    local am_total_minutes=$(( (am_hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-    local pm_total_minutes=$(( (pm_hour * 60 + minute) - (current_hour * 60 + current_minute) ))
+    local am_total=$(( am_hour * 60 + minute ))
+    local pm_total=$(( pm_hour * 60 + minute ))
 
-    # If AM time is in the past and PM time is in future, use PM
-    if [[ $am_total_minutes -lt 0 && $pm_total_minutes -gt 0 ]]; then
-        echo $pm_total_minutes
-    # If AM time is in the future, use that
-    elif [[ $am_total_minutes -gt 0 ]]; then
-        echo $am_total_minutes
-    # If both are in the past, roll over to tomorrow
+    # Calculate differences once
+    local am_diff=$(( am_total - current_total ))
+    local pm_diff=$(( pm_total - current_total ))
+
+    # Use the same logic but with pre-calculated differences
+    if [[ $am_diff -lt 0 && $pm_diff -gt 0 ]]; then
+        echo $pm_diff
+    elif [[ $am_diff -gt 0 ]]; then
+        echo $am_diff
     else
-        echo $(( am_total_minutes + 1440 ))
+        echo $(( am_diff + 1440 ))
     fi
 }
 
