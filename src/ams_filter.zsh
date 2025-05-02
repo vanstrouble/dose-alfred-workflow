@@ -69,16 +69,37 @@ parse_input() {
             echo "${input[1]}"
             return
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
-            # Format: 8 (hour only)
+            # Format: 8 or 8: (hour only)
             local hour=${match[1]}
             local minute=0
 
             # Parameter expansion is more efficient than sed
             hour=${hour#0}
 
-            # No ampm defined here, use nearest future time logic directly
-            local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
-            echo "$total_minutes"
+            # Check if the input has a colon at the end
+            if [[ "${input[1]}" =~ :$ ]]; then
+                # If it has a colon, treat it as a specific time
+                # Need to determine if it should be AM or PM based on current time
+                local current_hour24=$(date +"%H" | sed 's/^0//')
+
+                # Convert hour to 24-hour format based on likely intention
+                local hour24=$hour
+                if [[ $hour -lt 12 && $current_hour24 -ge 12 ]]; then
+                    # If current time is PM and input is 1-11, assume PM (add 12)
+                    hour24=$(( hour + 12 ))
+                elif [[ $hour -eq 12 && $current_hour24 -lt 12 ]]; then
+                    # If current time is AM and input is 12, assume 12 AM (set to 0)
+                    hour24=0
+                fi
+
+                # Ensure the hour has two digits for formatted output
+                [[ "$hour24" -lt 10 ]] && hour24="0$hour24"
+                echo "TIME:$hour24:00"
+            else
+                # No colon, use nearest future time logic
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                echo "$total_minutes"
+            fi
             return
         # For formats like "8a", "8am", "8p", "8pm"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
@@ -128,8 +149,22 @@ parse_input() {
                 [[ "$hour" -lt 10 ]] && hour="0$hour"
                 echo "TIME:$hour:$minute"
             else
-                # Without AM/PM, use existing logic to find the next occurrence
-                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                # Without explicit AM/PM, determine based on current time
+                local current_hour24=$(date +"%H" | sed 's/^0//')
+                local hour24=$hour
+
+                # Convert hour to 24-hour format based on likely intention
+                if [[ $hour -lt 12 && $current_hour24 -ge 12 ]]; then
+                    # If current time is PM and input is 1-11, assume PM (add 12)
+                    hour24=$(( hour + 12 ))
+                elif [[ $hour -eq 12 && $current_hour24 -lt 12 ]]; then
+                    # If current time is AM and input is 12, assume 12 AM (set to 0)
+                    hour24=0
+                fi
+
+                # Ensure the hour has two digits
+                [[ "$hour24" -lt 10 ]] && hour24="0$hour24"
+                echo "TIME:$hour24:$minute"
             fi
             return
         else
