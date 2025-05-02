@@ -168,7 +168,19 @@ format_duration() {
 generate_output() {
     local input_result=$1
 
-    # If it starts with "TIME:", it's a target time
+    # Check for invalid input first (fastest check)
+    if [[ "$input_result" == "0" ]]; then
+        echo '{"items":[{"title":"Invalid input","subtitle":"Please provide a valid time format","arg":"0","icon":{"path":"icon.png"}}]}'
+        return
+    fi
+
+    # Check for indefinite mode (no rerun needed)
+    if [[ "$input_result" == "indefinite" ]]; then
+        echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep your Mac awake until manually disabled","arg":"indefinite","icon":{"path":"icon.png"}}]}'
+        return
+    fi
+
+    # Check for target time format
     if [[ "$input_result" == TIME:* ]]; then
         local target_time=${input_result#TIME:}
         local hour=${target_time%:*}
@@ -178,18 +190,14 @@ generate_output() {
         local display_time=$(date -j -f "%H:%M" "$target_time" "+%l:%M %p" 2>/dev/null | sed 's/^ //')
         [[ $? -ne 0 ]] && display_time="$target_time"
 
-        # For rerun: keep updated
-        echo '{"rerun":1,"items":[{"title":"Active until '"$display_time"'","subtitle":"Keep awake until specified time","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
-    elif [[ "$input_result" == "indefinite" ]]; then
-        # No rerun for indefinite
-        echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep your Mac awake until manually disabled","arg":"indefinite","icon":{"path":"icon.png"}}]}'
-    elif [[ "$input_result" -gt 0 ]]; then
-        local end_time=$(calculate_end_time "$input_result")
-        local formatted_duration=$(format_duration "$input_result")
-        echo '{"rerun":1,"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
-    else
-        echo '{"items":[{"title":"Invalid input","subtitle":"Please provide a valid time format","arg":"0","icon":{"path":"icon.png"}}]}'
+        echo '{"items":[{"title":"Active until '"$display_time"'","subtitle":"Keep awake until specified time","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
+        return
     fi
+
+    # Finally, handle duration in minutes (most common case)
+    local end_time=$(calculate_end_time "$input_result")
+    local formatted_duration=$(format_duration "$input_result")
+    echo '{"rerun":1,"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
 }
 
 # Main function
