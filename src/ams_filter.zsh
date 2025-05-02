@@ -80,32 +80,29 @@ parse_input() {
             local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             echo "$total_minutes"
             return
+        # For formats like "8a", "8am", "8p", "8pm"
         elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
-            # Format: 1p, 1pm, 8a, 8am
             local hour=${match[1]}
             local ampm=${match[2]:-""}
 
-            # Parameter expansion instead of sed
             hour=${hour#0}
             local minute=0
 
+            # Convert to 24-hour format
             if [[ -n "$ampm" ]]; then
-                # Process explicit AM/PM
-                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
+            if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
+                hour=$(( hour + 12 ))
+            elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
+                hour=0
+            fi
 
-                # Calculate time difference once
-                local target_total=$(( hour * 60 + minute ))
-                local current_total=$(( current_hour * 60 + current_minute ))
-                local total_minutes=$(( target_total - current_total ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-                echo "$total_minutes"
+            # For exact hours, return "TIME:HH:MM" in 24-hour format
+            # Ensure the hour has two digits
+            [[ "$hour" -lt 10 ]] && hour="0$hour"
+            echo "TIME:$hour:00"
             else
-                # Use function for nearest future time calculation
-                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+            # Without AM/PM, use nearest future time logic
+            echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
             return
         elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?([mM])?$ ]]; then
@@ -114,28 +111,24 @@ parse_input() {
             local minute=${match[2]}
             local ampm=${match[3]:-""}
 
-            # Parameter expansion instead of sed
             hour=${hour#0}
 
-            # Handle single digit minute
-            [[ "${#minute}" -eq 1 ]] && minute=0${minute}
+            # Ensure that the minute has two digits
+            [[ "${#minute}" -eq 1 ]] && minute="0$minute"
 
             if [[ -n "$ampm" ]]; then
-                # Process explicit AM/PM
+                # Convert to 24-hour format
                 if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
                     hour=$(( hour + 12 ))
                 elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
                     hour=0
                 fi
 
-                # Calculate time difference once
-                local target_total=$(( hour * 60 + minute ))
-                local current_total=$(( current_hour * 60 + current_minute ))
-                local total_minutes=$(( target_total - current_total ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-                echo "$total_minutes"
+                # Ensure the hour has two digits
+                [[ "$hour" -lt 10 ]] && hour="0$hour"
+                echo "TIME:$hour:$minute"
             else
-                # Use function for nearest future time
+                # Without AM/PM, use existing logic to find the next occurrence
                 echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
             return
@@ -173,13 +166,27 @@ format_duration() {
 
 # Function to generate Alfred JSON output
 generate_output() {
-    local total_minutes=$1
-    if [[ "$total_minutes" == "indefinite" ]]; then
+    local input_result=$1
+
+    # If it starts with "TIME:", it's a target time
+    if [[ "$input_result" == TIME:* ]]; then
+        local target_time=${input_result#TIME:}
+        local hour=${target_time%:*}
+        local minute=${target_time#*:}
+
+        # To display the time in a user-friendly format
+        local display_time=$(date -j -f "%H:%M" "$target_time" "+%l:%M %p" 2>/dev/null | sed 's/^ //')
+        [[ $? -ne 0 ]] && display_time="$target_time"
+
+        # For rerun: keep updated
+        echo '{"rerun":1,"items":[{"title":"Active until '"$display_time"'","subtitle":"Keep awake until specified time","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
+    elif [[ "$input_result" == "indefinite" ]]; then
+        # No rerun for indefinite
         echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep your Mac awake until manually disabled","arg":"indefinite","icon":{"path":"icon.png"}}]}'
-    elif [[ "$total_minutes" -gt 0 ]]; then
-        local end_time=$(calculate_end_time "$total_minutes")
-        local formatted_duration=$(format_duration "$total_minutes")
-        echo '{"rerun":1,"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$total_minutes"'","icon":{"path":"icon.png"}}]}'
+    elif [[ "$input_result" -gt 0 ]]; then
+        local end_time=$(calculate_end_time "$input_result")
+        local formatted_duration=$(format_duration "$input_result")
+        echo '{"rerun":1,"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
     else
         echo '{"items":[{"title":"Invalid input","subtitle":"Please provide a valid time format","arg":"0","icon":{"path":"icon.png"}}]}'
     fi
