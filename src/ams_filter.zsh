@@ -7,11 +7,11 @@ calculate_end_time() {
     # Check Alfred variable for time format preference
     # 'a' is 12-hour format, 'b' is 24-hour format
     if [[ "${alfred_time_format:-a}" == "a" ]]; then
-        # 12-hour format with AM/PM
-        date -v+"$minutes"M +"%l:%M %p" | sed 's/^ //'
+        # 12-hour format with AM/PM including seconds
+        date -v+"$minutes"M +"%l:%M:%S %p" | sed 's/^ //'
     else
-        # 24-hour format
-        date -v+"$minutes"M +"%H:%M"
+        # 24-hour format including seconds
+        date -v+"$minutes"M +"%H:%M:%S"
     fi
 }
 
@@ -179,7 +179,7 @@ generate_output() {
     elif [[ "$total_minutes" -gt 0 ]]; then
         local end_time=$(calculate_end_time "$total_minutes")
         local formatted_duration=$(format_duration "$total_minutes")
-        echo '{"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$total_minutes"'","icon":{"path":"icon.png"}}]}'
+        echo '{"rerun":1,"items":[{"title":"Active for '"$formatted_duration"'","subtitle":"Keep awake until around '"$end_time"'","arg":"'"$total_minutes"'","icon":{"path":"icon.png"}}]}'
     else
         echo '{"items":[{"title":"Invalid input","subtitle":"Please provide a valid time format","arg":"0","icon":{"path":"icon.png"}}]}'
     fi
