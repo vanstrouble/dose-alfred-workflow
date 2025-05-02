@@ -7,7 +7,7 @@ A simple workflow that integrates with the [Amphetamine app](https://apps.apple.
 - Available on the Alfred Gallery. Get it [here](https://alfred.app/workflows/vanstrouble/amphetamine-dose/).
 - You can also download it from GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases).
 
-**This workflow is only for Alfred.app Powerpack users.**
+**This workflow is only for Alfred Powerpack users.**
 
 ## Getting Started
 
