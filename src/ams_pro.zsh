@@ -94,7 +94,13 @@ output_message() {
     local allow_display_sleep=$3
 
     local prefix="Keeping awake"
-    local suffix=$([ "$allow_display_sleep" == "true" ] && echo ". (Display can sleep)" || echo ".")
+    local suffix
+
+    if [[ "$allow_display_sleep" == "true" ]]; then
+        suffix=". (Display can sleep)"
+    else
+        suffix="."
+    fi
 
     if [[ -n "$approximate" && "$approximate" == "true" ]]; then
         echo "${prefix} until around ${message}${suffix}"
