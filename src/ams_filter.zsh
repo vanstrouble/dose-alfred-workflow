@@ -78,23 +78,15 @@ parse_input() {
 
             # Check if the input has a colon at the end
             if [[ "${input[1]}" =~ :$ ]]; then
-                # If it has a colon, treat it as a specific time
-                # Need to determine if it should be AM or PM based on current time
-                local current_hour24=$(date +"%H" | sed 's/^0//')
+                # If it has a colon, use the same nearest future time logic
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
-                # Convert hour to 24-hour format based on likely intention
-                local hour24=$hour
-                if [[ $hour -lt 12 && $current_hour24 -ge 12 ]]; then
-                    # If current time is PM and input is 1-11, assume PM (add 12)
-                    hour24=$(( hour + 12 ))
-                elif [[ $hour -eq 12 && $current_hour24 -lt 12 ]]; then
-                    # If current time is AM and input is 12, assume 12 AM (set to 0)
-                    hour24=0
-                fi
+                # Convert minutes to hours and minutes since midnight
+                local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
 
                 # Ensure the hour has two digits for formatted output
-                [[ "$hour24" -lt 10 ]] && hour24="0$hour24"
-                echo "TIME:$hour24:00"
+                [[ "$future_hour" -lt 10 ]] && future_hour="0$future_hour"
+                echo "TIME:$future_hour:00"
             else
                 # No colon, use nearest future time logic
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
@@ -149,22 +141,18 @@ parse_input() {
                 [[ "$hour" -lt 10 ]] && hour="0$hour"
                 echo "TIME:$hour:$minute"
             else
-                # Without explicit AM/PM, determine based on current time
-                local current_hour24=$(date +"%H" | sed 's/^0//')
-                local hour24=$hour
+                # Without explicit AM/PM, use nearest future time logic
+                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
-                # Convert hour to 24-hour format based on likely intention
-                if [[ $hour -lt 12 && $current_hour24 -ge 12 ]]; then
-                    # If current time is PM and input is 1-11, assume PM (add 12)
-                    hour24=$(( hour + 12 ))
-                elif [[ $hour -eq 12 && $current_hour24 -lt 12 ]]; then
-                    # If current time is AM and input is 12, assume 12 AM (set to 0)
-                    hour24=0
-                fi
+                # Convert minutes to hours and minutes since midnight
+                local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
+                local future_minute=$(( (total_minutes + current_hour * 60 + current_minute) % 60 ))
 
-                # Ensure the hour has two digits
-                [[ "$hour24" -lt 10 ]] && hour24="0$hour24"
-                echo "TIME:$hour24:$minute"
+                # Ensure the hour and minute have two digits
+                [[ "$future_hour" -lt 10 ]] && future_hour="0$future_hour"
+                [[ "$future_minute" -lt 10 ]] && future_minute="0$future_minute"
+
+                echo "TIME:$future_hour:$future_minute"
             fi
             return
         else
