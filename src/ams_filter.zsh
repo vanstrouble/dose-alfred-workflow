@@ -49,6 +49,51 @@ get_nearest_future_time() {
     fi
 }
 
+# Helper function to format hours with leading zero
+format_hour() {
+    local hour=$1
+    [[ "$hour" -lt 10 ]] && echo "0$hour" || echo "$hour"
+}
+
+# Helper function to format minutes with leading zero
+format_minute() {
+    local minute=$1
+    [[ "$minute" -lt 10 ]] && echo "0$minute" || echo "$minute"
+}
+
+# Helper function to convert AM/PM hour to 24-hour format
+convert_to_24h_format() {
+    local hour=$1
+    local ampm=$2
+
+    # Trim leading zeros
+    hour=${hour#0}
+
+    if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
+        echo $(( hour + 12 ))
+    elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
+        echo 0
+    else
+        echo $hour
+    fi
+}
+
+# Helper function to calculate future time from minutes
+calculate_future_time() {
+    local total_minutes=$1
+    local current_hour=$2
+    local current_minute=$3
+
+    local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
+    local future_minute=$(( (total_minutes + current_hour * 60 + current_minute) % 60 ))
+
+    # Format with leading zeros
+    future_hour=$(format_hour "$future_hour")
+    future_minute=$(format_minute "$future_minute")
+
+    echo "TIME:$future_hour:$future_minute"
+}
+
 # Function to parse the input and calculate the total minutes
 parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
@@ -88,12 +133,10 @@ parse_input() {
                 # If it has a colon, calculate specific time
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
-                # Convert minutes to hours and minutes since midnight
-                local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
-
-                # Ensure the hour has two digits for formatted output
-                [[ "$future_hour" -lt 10 ]] && future_hour="0$future_hour"
-                echo "TIME:$future_hour:00"
+                # Use helper function to calculate future time
+                local future_time=$(calculate_future_time "$total_minutes" "$current_hour" "$current_minute")
+                # For hour-only format with colon, we want to force minutes to 00
+                echo "${future_time%:*}:00"
             else
                 # No colon, return minutes
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
@@ -106,24 +149,19 @@ parse_input() {
         if [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
             local hour=${match[1]}
             local ampm=${match[2]:-""}
-
-            hour=${hour#0}
             local minute=0
 
             # With AM/PM indicator
             if [[ -n "$ampm" ]]; then
-                # Convert to 24-hour format
-                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
+                # Convert to 24-hour format using helper function
+                hour=$(convert_to_24h_format "$hour" "$ampm")
 
-                # Ensure the hour has two digits
-                [[ "$hour" -lt 10 ]] && hour="0$hour"
+                # Format hour with leading zero
+                hour=$(format_hour "$hour")
                 echo "TIME:$hour:00"
             else
                 # Without AM/PM, use nearest future time
+                hour=${hour#0}
                 echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
             return
@@ -135,36 +173,22 @@ parse_input() {
             local minute=${match[2]}
             local ampm=${match[3]:-""}
 
-            hour=${hour#0}
-
-            # Ensure that the minute has two digits
-            [[ "${#minute}" -eq 1 ]] && minute="0$minute"
-
             # With AM/PM indicator
             if [[ -n "$ampm" ]]; then
-                # Convert to 24-hour format
-                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
+                # Convert to 24-hour format using helper function
+                hour=$(convert_to_24h_format "$hour" "$ampm")
 
-                # Ensure the hour has two digits
-                [[ "$hour" -lt 10 ]] && hour="0$hour"
+                # Format output with leading zeros
+                hour=$(format_hour "$hour")
+                minute=$(format_minute "$minute")
                 echo "TIME:$hour:$minute"
             else
                 # Without explicit AM/PM, calculate future time
+                hour=${hour#0}
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
-                # Convert to hours and minutes
-                local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
-                local future_minute=$(( (total_minutes + current_hour * 60 + current_minute) % 60 ))
-
-                # Format with leading zeros
-                [[ "$future_hour" -lt 10 ]] && future_hour="0$future_hour"
-                [[ "$future_minute" -lt 10 ]] && future_minute="0$future_minute"
-
-                echo "TIME:$future_hour:$future_minute"
+                # Use helper function to calculate and format future time
+                echo $(calculate_future_time "$total_minutes" "$current_hour" "$current_minute")
             fi
             return
         fi
