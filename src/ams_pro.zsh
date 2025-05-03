@@ -5,7 +5,6 @@ calculate_end_time() {
     local minutes=$1
 
     # Check Alfred variable for time format preference
-    # 'a' is 12-hour format, 'b' is 24-hour format
     if [[ "${alfred_time_format:-a}" == "a" ]]; then
         # 12-hour format with AM/PM
         date -v+"$minutes"M +"%l:%M %p" | sed 's/^ //'
@@ -36,60 +35,35 @@ parse_time_format() {
     echo "$hour $minute"
 }
 
-# Function to start an Amphetamine session with minutes
-start_amphetamine_session() {
-    local total_minutes=$1
-    local allow_display_sleep=$2
+# Function to calculate minutes until target time
+calculate_minutes_until_target() {
+    local hour=$1
+    local minute=$2
 
-    # Ensure the minutes are a valid number and greater than 0
-    if [[ ! "$total_minutes" =~ ^[0-9]+$ || "$total_minutes" -eq 0 ]]; then
-        echo "Error: Invalid duration: $total_minutes minutes" >&2
-        exit 1
-    fi
-
-    osascript -e "tell application \"Amphetamine\" to start new session with options {duration:$total_minutes, interval:minutes, displaySleepAllowed:$allow_display_sleep}" || {
-        echo "Error: Failed to start Amphetamine session." >&2
-        exit 1
-    }
-}
-
-# Function to start an Amphetamine session with a target time
-start_amphetamine_target_time() {
-    local target_time=$1
-    local allow_display_sleep=$2
-
-    # Extract hour and minute using the dedicated function
-    read -r hour minute <<< "$(parse_time_format "$target_time")"
-
-    # Debug output
-    echo "Debug: Parsed time - Hour: $hour, Minute: $minute" >&2
-
-    # Calculate total minutes until target time
+    # Get current time
     local current_hour=$(date +"%H")
     local current_minute=$(date +"%M")
 
-    # Debug output
-    echo "Debug: Current time - Hour: $current_hour, Minute: $current_minute" >&2
-
+    # Calculate total minutes
     local target_minutes=$(( hour * 60 + minute ))
     local current_minutes=$(( current_hour * 60 + current_minute ))
     local duration_minutes=$(( target_minutes - current_minutes ))
 
-    # Debug output
-    echo "Debug: Minutes calculation - Target: $target_minutes, Current: $current_minutes, Duration: $duration_minutes" >&2
-
     # If target time is earlier than current time, add 24 hours
     [[ $duration_minutes -le 0 ]] && duration_minutes=$(( duration_minutes + 1440 ))
 
-    # Debug output after adjustment
-    echo "Debug: Final duration minutes: $duration_minutes" >&2
+    echo "$duration_minutes"
+}
 
-    # Start the session
-    start_amphetamine_session "$duration_minutes" "$allow_display_sleep"
+# Function to format time for display
+format_display_time() {
+    local hour=$1
+    local minute=$2
+    local time_format=${3:-a}
 
-    # Format the time for display based on user preference
     local display_time
-    if [[ "${alfred_time_format:-a}" == "a" ]]; then
+
+    if [[ "$time_format" == "a" ]]; then
         # 12-hour format
         if [[ "$hour" -gt 12 ]]; then
             display_time="$((hour-12)):${minute} PM"
@@ -110,11 +84,51 @@ start_amphetamine_target_time() {
         display_time="${hour}:${minute}"
     fi
 
-    if [[ "$allow_display_sleep" == "true" ]]; then
-        echo "Keeping awake until ${display_time}. (Display can sleep)"
+    echo "$display_time"
+}
+
+# Function to print output message based on display sleep setting
+output_message() {
+    local message=$1
+    local approximate=$2
+    local allow_display_sleep=$3
+
+    local prefix="Keeping awake"
+    local suffix=$([ "$allow_display_sleep" == "true" ] && echo ". (Display can sleep)" || echo ".")
+
+    if [[ -n "$approximate" && "$approximate" == "true" ]]; then
+        echo "${prefix} until around ${message}${suffix}"
     else
-        echo "Keeping awake until ${display_time}."
+        echo "${prefix} until ${message}${suffix}"
     fi
+}
+
+# Function to print indefinite output message based on display sleep setting
+output_indefinite_message() {
+    local allow_display_sleep=$1
+
+    if [[ "$allow_display_sleep" == "true" ]]; then
+        echo "Keeping awake indefinitely. (Display can sleep)"
+    else
+        echo "Keeping awake indefinitely."
+    fi
+}
+
+# Function to start an Amphetamine session with minutes
+start_amphetamine_session() {
+    local total_minutes=$1
+    local allow_display_sleep=$2
+
+    # Ensure the minutes are a valid number and greater than 0
+    if [[ ! "$total_minutes" =~ ^[0-9]+$ || "$total_minutes" -eq 0 ]]; then
+        echo "Error: Invalid duration: $total_minutes minutes" >&2
+        exit 1
+    fi
+
+    osascript -e "tell application \"Amphetamine\" to start new session with options {duration:$total_minutes, interval:minutes, displaySleepAllowed:$allow_display_sleep}" || {
+        echo "Error: Failed to start Amphetamine session." >&2
+        exit 1
+    }
 }
 
 # Function to start an indefinite Amphetamine session
@@ -126,11 +140,43 @@ start_indefinite_session() {
         exit 1
     }
 
-    if [[ "$allow_display_sleep" == "true" ]]; then
-        echo "Keeping awake indefinitely. (Display can sleep)"
-    else
-        echo "Keeping awake indefinitely."
-    fi
+    output_indefinite_message "$allow_display_sleep"
+}
+
+# Function to handle target time input
+handle_target_time() {
+    local target_time=$1
+    local allow_display_sleep=$2
+
+    # Extract hour and minute
+    read -r hour minute <<< "$(parse_time_format "$target_time")"
+
+    # Calculate minutes until target time
+    local duration_minutes=$(calculate_minutes_until_target "$hour" "$minute")
+
+    # Start the session
+    start_amphetamine_session "$duration_minutes" "$allow_display_sleep"
+
+    # Format time for display
+    local display_time=$(format_display_time "$hour" "$minute" "${alfred_time_format:-a}")
+
+    # Output result message
+    output_message "$display_time" "false" "$allow_display_sleep"
+}
+
+# Function to handle minute duration input
+handle_duration() {
+    local minutes=$1
+    local allow_display_sleep=$2
+
+    # Calculate end time for display
+    local end_time=$(calculate_end_time "$minutes")
+
+    # Start the session
+    start_amphetamine_session "$minutes" "$allow_display_sleep"
+
+    # Output result message using the common function
+    output_message "$end_time" "true" "$allow_display_sleep"
 }
 
 # Main function
@@ -145,16 +191,9 @@ main() {
     elif [[ "$INPUT" == "indefinite" ]]; then
         start_indefinite_session "$display_sleep_allow"
     elif [[ "$INPUT" == TIME:* ]]; then
-        start_amphetamine_target_time "$INPUT" "$display_sleep_allow"
+        handle_target_time "$INPUT" "$display_sleep_allow"
     elif [[ "$INPUT" =~ ^[0-9]+$ ]]; then
-        local end_time=$(calculate_end_time "$INPUT")
-        start_amphetamine_session "$INPUT" "$display_sleep_allow"
-
-        if [[ "$display_sleep_allow" == "true" ]]; then
-            echo "Keeping awake until around $end_time. (Display can sleep)"
-        else
-            echo "Keeping awake until around $end_time."
-        fi
+        handle_duration "$INPUT" "$display_sleep_allow"
     else
         echo "Error: Invalid input. Please provide a valid duration."
         exit 1
