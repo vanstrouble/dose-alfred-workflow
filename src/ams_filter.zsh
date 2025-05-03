@@ -52,12 +52,18 @@ get_nearest_future_time() {
 # Helper function to format hours with leading zero
 format_hour() {
     local hour=$1
+    # Ensure hour is a number without leading zeros
+    hour=${hour#0}
+    [[ -z "$hour" ]] && hour=0
     [[ "$hour" -lt 10 ]] && echo "0$hour" || echo "$hour"
 }
 
 # Helper function to format minutes with leading zero
 format_minute() {
     local minute=$1
+    # Ensure minute is a number without leading zeros
+    minute=${minute#0}
+    [[ -z "$minute" ]] && minute=0
     [[ "$minute" -lt 10 ]] && echo "0$minute" || echo "$minute"
 }
 
@@ -68,6 +74,7 @@ convert_to_24h_format() {
 
     # Trim leading zeros
     hour=${hour#0}
+    [[ -z "$hour" ]] && hour=0
 
     if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
         echo $(( hour + 12 ))
@@ -87,7 +94,7 @@ calculate_future_time() {
     local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
     local future_minute=$(( (total_minutes + current_hour * 60 + current_minute) % 60 ))
 
-    # Format with leading zeros
+    # Format with leading zeros (after removing any existing leading zeros)
     future_hour=$(format_hour "$future_hour")
     future_minute=$(format_minute "$future_minute")
 
