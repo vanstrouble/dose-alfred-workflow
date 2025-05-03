@@ -15,13 +15,40 @@ calculate_end_time() {
     fi
 }
 
+# Function to extract hour and minute from TIME:HH:MM format
+parse_time_format() {
+    local time_str=$1
+
+    # Remove the TIME: prefix
+    time_str=${time_str#TIME:}
+
+    # Extract hour and minute directly
+    local hour=${time_str%%:*}
+    local minute=${time_str#*:}
+
+    # Validate input - purely numeric and in range
+    if [[ ! "$hour" =~ ^[0-9]+$ || ! "$minute" =~ ^[0-9]+$ || "$hour" -gt 23 || "$minute" -gt 59 ]]; then
+        echo "Error: Invalid time format: $time_str" >&2
+        exit 1
+    fi
+
+    # Return as space-separated values
+    echo "$hour $minute"
+}
+
 # Function to start an Amphetamine session with minutes
 start_amphetamine_session() {
     local total_minutes=$1
     local allow_display_sleep=$2
 
+    # Ensure the minutes are a valid number and greater than 0
+    if [[ ! "$total_minutes" =~ ^[0-9]+$ || "$total_minutes" -eq 0 ]]; then
+        echo "Error: Invalid duration: $total_minutes minutes" >&2
+        exit 1
+    fi
+
     osascript -e "tell application \"Amphetamine\" to start new session with options {duration:$total_minutes, interval:minutes, displaySleepAllowed:$allow_display_sleep}" || {
-        echo "Error: Failed to start Amphetamine session."
+        echo "Error: Failed to start Amphetamine session." >&2
         exit 1
     }
 }
@@ -31,30 +58,55 @@ start_amphetamine_target_time() {
     local target_time=$1
     local allow_display_sleep=$2
 
-    # Extract hour and minute from TIME:HH:MM format
-    local hour=${target_time#TIME:}
-    hour=${hour%:*}
-    local minute=${target_time#*:}
+    # Extract hour and minute using the dedicated function
+    read -r hour minute <<< "$(parse_time_format "$target_time")"
+
+    # Debug output
+    echo "Debug: Parsed time - Hour: $hour, Minute: $minute" >&2
 
     # Calculate total minutes until target time
     local current_hour=$(date +"%H")
     local current_minute=$(date +"%M")
 
+    # Debug output
+    echo "Debug: Current time - Hour: $current_hour, Minute: $current_minute" >&2
+
     local target_minutes=$(( hour * 60 + minute ))
     local current_minutes=$(( current_hour * 60 + current_minute ))
     local duration_minutes=$(( target_minutes - current_minutes ))
 
+    # Debug output
+    echo "Debug: Minutes calculation - Target: $target_minutes, Current: $current_minutes, Duration: $duration_minutes" >&2
+
     # If target time is earlier than current time, add 24 hours
-    [[ $duration_minutes -lt 0 ]] && duration_minutes=$(( duration_minutes + 1440 ))
+    [[ $duration_minutes -le 0 ]] && duration_minutes=$(( duration_minutes + 1440 ))
+
+    # Debug output after adjustment
+    echo "Debug: Final duration minutes: $duration_minutes" >&2
 
     # Start the session
     start_amphetamine_session "$duration_minutes" "$allow_display_sleep"
 
-    # Format the time for display
+    # Format the time for display based on user preference
     local display_time
     if [[ "${alfred_time_format:-a}" == "a" ]]; then
-        display_time=$(date -j -f "%H:%M" "${hour}:${minute}" "+%l:%M %p" 2>/dev/null | sed 's/^ //')
+        # 12-hour format
+        if [[ "$hour" -gt 12 ]]; then
+            display_time="$((hour-12)):${minute} PM"
+        elif [[ "$hour" -eq 12 ]]; then
+            display_time="12:${minute} PM"
+        elif [[ "$hour" -eq 0 ]]; then
+            display_time="12:${minute} AM"
+        else
+            display_time="${hour}:${minute} AM"
+        fi
+
+        # Ensure minutes have leading zero if needed
+        [[ ${#minute} -eq 1 ]] && display_time="${display_time/\:$minute/\:0$minute}"
     else
+        # 24-hour format
+        [[ ${#hour} -eq 1 ]] && hour="0$hour"
+        [[ ${#minute} -eq 1 ]] && minute="0$minute"
         display_time="${hour}:${minute}"
     fi
 
@@ -70,7 +122,7 @@ start_indefinite_session() {
     local allow_display_sleep=$1
 
     osascript -e "tell application \"Amphetamine\" to start new session with options {displaySleepAllowed:$allow_display_sleep}" || {
-        echo "Error: Failed to start Amphetamine session."
+        echo "Error: Failed to start Amphetamine session." >&2
         exit 1
     }
 
