@@ -200,9 +200,6 @@ main() {
         handle_target_time "$INPUT" "$display_sleep_allow"
     elif [[ "$INPUT" =~ ^[0-9]+$ ]]; then
         handle_duration "$INPUT" "$display_sleep_allow"
-    else
-        echo "Error: Invalid input. Please provide a valid duration."
-        exit 1
     fi
 }
 
