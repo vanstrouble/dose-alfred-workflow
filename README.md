@@ -23,7 +23,7 @@ If you hold the Command key while using the `dose` command, the session will all
 
 ### One command for everything (ams)
 
-<img src="img/ams-pro.png" alt="Alfred set Amphetamine duration image" width="550"/>
+<img src="img/ams.png" alt="Alfred set Amphetamine duration image" width="550"/>
 
 The `ams` command allows you to set Amphetamine to keep your Mac awake for a specific duration or until a specific time. It supports natural input formats for minutes, hours, and specific times, making it flexible and easy to use.
 
