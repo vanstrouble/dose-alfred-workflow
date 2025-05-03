@@ -55,21 +55,28 @@ parse_input() {
     local current_hour=$(date +"%H")
     local current_minute=$(date +"%M")
 
+    # Early return for invalid input when empty
+    [[ -z "${input[1]}" ]] && echo "0" && return
+
+    # Handle single input cases with early returns
     if [[ "${#input[@]}" -eq 1 ]]; then
-        if [[ "${input[1]}" == "i" ]]; then
-            # Special value for indefinite mode
-            echo "indefinite"
-            return
-        elif [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
-            # Use parameter expansion instead of separate variable
+        # Special value for indefinite mode
+        [[ "${input[1]}" == "i" ]] && echo "indefinite" && return
+
+        # Format: 2h (hours)
+        if [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
             echo $(( ${input[1]%h} * 60 ))
             return
-        elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
-            # Direct number input (minutes)
+        fi
+
+        # Direct number input (minutes)
+        if [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
             echo "${input[1]}"
             return
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
-            # Format: 8 or 8: (hour only)
+        fi
+
+        # Format: 8 or 8: (hour only)
+        if [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
             local hour=${match[1]}
             local minute=0
 
@@ -78,7 +85,7 @@ parse_input() {
 
             # Check if the input has a colon at the end
             if [[ "${input[1]}" =~ :$ ]]; then
-                # If it has a colon, use the same nearest future time logic
+                # If it has a colon, calculate specific time
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
                 # Convert minutes to hours and minutes since midnight
@@ -88,38 +95,42 @@ parse_input() {
                 [[ "$future_hour" -lt 10 ]] && future_hour="0$future_hour"
                 echo "TIME:$future_hour:00"
             else
-                # No colon, use nearest future time logic
+                # No colon, return minutes
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
                 echo "$total_minutes"
             fi
             return
-        # For formats like "8a", "8am", "8p", "8pm"
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
+        fi
+
+        # Format: 8a, 8am, 8p, 8pm
+        if [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
             local hour=${match[1]}
             local ampm=${match[2]:-""}
 
             hour=${hour#0}
             local minute=0
 
-            # Convert to 24-hour format
+            # With AM/PM indicator
             if [[ -n "$ampm" ]]; then
-            if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                hour=$(( hour + 12 ))
-            elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                hour=0
-            fi
+                # Convert to 24-hour format
+                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
+                    hour=$(( hour + 12 ))
+                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
+                    hour=0
+                fi
 
-            # For exact hours, return "TIME:HH:MM" in 24-hour format
-            # Ensure the hour has two digits
-            [[ "$hour" -lt 10 ]] && hour="0$hour"
-            echo "TIME:$hour:00"
+                # Ensure the hour has two digits
+                [[ "$hour" -lt 10 ]] && hour="0$hour"
+                echo "TIME:$hour:00"
             else
-            # Without AM/PM, use nearest future time logic
-            echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                # Without AM/PM, use nearest future time
+                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
             fi
             return
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?([mM])?$ ]]; then
-            # Format: 8:30, 8:30a, 8:30am, 8:30p, 8:30pm
+        fi
+
+        # Format: 8:30, 8:30a, 8:30am, 8:30p, 8:30pm
+        if [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?([mM])?$ ]]; then
             local hour=${match[1]}
             local minute=${match[2]}
             local ampm=${match[3]:-""}
@@ -129,6 +140,7 @@ parse_input() {
             # Ensure that the minute has two digits
             [[ "${#minute}" -eq 1 ]] && minute="0$minute"
 
+            # With AM/PM indicator
             if [[ -n "$ampm" ]]; then
                 # Convert to 24-hour format
                 if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
@@ -141,35 +153,41 @@ parse_input() {
                 [[ "$hour" -lt 10 ]] && hour="0$hour"
                 echo "TIME:$hour:$minute"
             else
-                # Without explicit AM/PM, use nearest future time logic
+                # Without explicit AM/PM, calculate future time
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
-                # Convert minutes to hours and minutes since midnight
+                # Convert to hours and minutes
                 local future_hour=$(( (total_minutes + current_hour * 60 + current_minute) / 60 % 24 ))
                 local future_minute=$(( (total_minutes + current_hour * 60 + current_minute) % 60 ))
 
-                # Ensure the hour and minute have two digits
+                # Format with leading zeros
                 [[ "$future_hour" -lt 10 ]] && future_hour="0$future_hour"
                 [[ "$future_minute" -lt 10 ]] && future_minute="0$future_minute"
 
                 echo "TIME:$future_hour:$future_minute"
             fi
             return
-        else
-            # Invalid single input
-            echo "0"
+        fi
+
+        # If we get here, it's an invalid single input
+        echo "0"
+        return
+    fi
+
+    # Handle two-part input (hours and minutes)
+    if [[ "${#input[@]}" -eq 2 ]]; then
+        if [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
+            echo $(( input[1] * 60 + input[2] ))
             return
         fi
-    elif [[ "${#input[@]}" -eq 2 ]]; then
-        if [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
-            # Format: 1 20 (hours and minutes)
-            echo $(( input[1] * 60 + input[2] ))
-        else
-            echo "0"
-        fi
-    else
+
+        # Invalid two-part input
         echo "0"
+        return
     fi
+
+    # Default case: invalid input
+    echo "0"
 }
 
 # Function to format the duration in hours and minutes
