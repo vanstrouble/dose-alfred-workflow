@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Function to detect system time format (12h or 24h)
-detect_time_format() {
-    local time_format=$(date +%X | grep -E "AM|PM" &>/dev/null && echo "12" || echo "24")
-    echo "$time_format"
-}
-
 # Function to calculate the end time based on the given minutes
 calculate_end_time() {
     local minutes=$1
@@ -21,164 +15,7 @@ calculate_end_time() {
     fi
 }
 
-# Function to get the nearest future time based on input hour and minute
-get_nearest_future_time() {
-    local hour=$1
-    local minute=$2
-    local current_hour=$3
-    local current_minute=$4
-    local exact_hour=${5:-false}  # New optional parameter
-
-    # For exact hours, ignore the current minutes
-    local effective_current_minute=$current_minute
-    [[ "$exact_hour" == "true" && "$minute" -eq 0 ]] && effective_current_minute=0
-
-    # Calculate current time in minutes since midnight (once instead of twice)
-    local current_total=$(( current_hour * 60 + effective_current_minute ))
-
-    # Special handling for hour 12 and conversion to AM/PM using shorter syntax
-    local am_hour=$hour
-    local pm_hour=$hour
-    [[ $hour -eq 12 ]] && am_hour=0  # 12 AM is actually 0 in 24-hour format
-    [[ $hour -lt 12 ]] && pm_hour=$(( hour + 12 ))
-
-    # Calculate minutes for AM and PM interpretations
-    local am_total=$(( am_hour * 60 + minute ))
-    local pm_total=$(( pm_hour * 60 + minute ))
-
-    # Calculate differences once
-    local am_diff=$(( am_total - current_total ))
-    local pm_diff=$(( pm_total - current_total ))
-
-    # Use the same logic but with pre-calculated differences
-    if [[ $am_diff -lt 0 && $pm_diff -gt 0 ]]; then
-        echo $pm_diff
-    elif [[ $am_diff -gt 0 ]]; then
-        echo $am_diff
-    else
-        echo $(( am_diff + 1440 ))
-    fi
-}
-
-# Function to parse the input and calculate the total minutes
-parse_input() {
-    local input=("${(@s/ /)1}")  # Split the input into parts
-    local current_hour=$(date +"%H")
-    local current_minute=$(date +"%M")
-    local system_format=$(detect_time_format)
-
-    if [[ "${#input[@]}" -eq 1 ]]; then
-        if [[ "${input[1]}" == "i" ]]; then
-            # Special value for indefinite mode
-            echo "indefinite"
-        elif [[ "${input[1]}" =~ ^[0-9]+h$ ]]; then
-            # Format: 2h (hours with 'h' suffix)
-            local hours=${input[1]%h}  # Remove the 'h' suffix with parameter expansion
-            echo $(( hours * 60 ))
-        elif [[ "${input[1]}" =~ ^[0-9]+$ ]]; then
-            # Format: 30 (only minutes)
-            echo "${input[1]}"
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
-            # Format: 8 (hour only)
-            local hour=${match[1]}
-            local minute=0
-
-            # Parameter expansion is more efficient than sed
-            hour=${hour#0}
-
-            # Pass true as the fifth parameter to indicate exact hour
-            local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute" "true")
-            echo "$total_minutes"
-            return
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
-            # Format: 8a, 8am, 8p, 8pm
-            local hour=${input[1]}
-            local minute=0
-
-            # Extract the hour and AM/PM part
-            if [[ $hour =~ ^([0-9]+)([aApP])[mM]?$ ]]; then
-                hour=${BASH_REMATCH[1]}
-                local ampm=${BASH_REMATCH[2]}
-
-                # Use parameter expansion instead of sed
-                hour=${hour#0}
-
-                # Process explicit AM/PM
-                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
-
-                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-                echo "$total_minutes"
-            else
-                # If no AM/PM specified, use nearest future time
-                hour=${hour#0}
-                # Pass true as the fifth parameter
-                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute" "true")
-            fi
-        elif [[ "${input[1]}" =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])?([mM])?$ ]]; then
-            # Format: 8:30, 8:30a, 8:30am, 8:30p, 8:30pm
-            local full_match=${input[1]}
-            local hour=""
-            local minute=""
-            local ampm=""
-
-            # Extract hour, minute and AM/PM
-            if [[ $full_match =~ ^([0-9]{1,2}):([0-9]{1,2})$ ]]; then
-                # Format: 8:30
-                hour=${BASH_REMATCH[1]}
-                minute=${BASH_REMATCH[2]}
-
-                # Use parameter expansion instead of sed
-                hour=${hour#0}
-
-                # Use nearest future time logic
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
-                echo "$total_minutes"
-            elif [[ $full_match =~ ^([0-9]{1,2}):([0-9]{1,2})([aApP])([mM])?$ ]]; then
-                # Format: 8:30a, 8:30am, 8:30p, 8:30pm
-                hour=${BASH_REMATCH[1]}
-                minute=${BASH_REMATCH[2]}
-                ampm=${BASH_REMATCH[3]}
-
-                # Use parameter expansion instead of sed
-                hour=${hour#0}
-
-                # Process explicit AM/PM
-                if [[ "$ampm" =~ [pP] && "$hour" -lt 12 ]]; then
-                    hour=$(( hour + 12 ))
-                elif [[ "$ampm" =~ [aA] && "$hour" -eq 12 ]]; then
-                    hour=0
-                fi
-
-                local total_minutes=$(( (hour * 60 + minute) - (current_hour * 60 + current_minute) ))
-                (( total_minutes < 0 )) && total_minutes=$(( total_minutes + 1440 ))
-                echo "$total_minutes"
-            else
-                echo "0"
-            fi
-        else
-            # Invalid single input
-            echo "0"
-        fi
-    elif [[ "${#input[@]}" -eq 2 ]]; then
-        if [[ "${input[1]}" =~ ^[0-9]+$ && "${input[2]}" =~ ^[0-9]+$ ]]; then
-            # Format: 1 20 (hours and minutes)
-            echo $(( input[1] * 60 + input[2] ))
-        else
-            # Invalid second part
-            echo "0"
-        fi
-    else
-        # Invalid input or incomplete
-        echo "0"
-    fi
-}
-
-# Function to start an Amphetamine session
+# Function to start an Amphetamine session with minutes
 start_amphetamine_session() {
     local total_minutes=$1
     local allow_display_sleep=$2
@@ -189,7 +26,46 @@ start_amphetamine_session() {
     }
 }
 
-# Function to handle indefinite session
+# Function to start an Amphetamine session with a target time
+start_amphetamine_target_time() {
+    local target_time=$1
+    local allow_display_sleep=$2
+
+    # Extract hour and minute from TIME:HH:MM format
+    local hour=${target_time#TIME:}
+    hour=${hour%:*}
+    local minute=${target_time#*:}
+
+    # Calculate total minutes until target time
+    local current_hour=$(date +"%H")
+    local current_minute=$(date +"%M")
+
+    local target_minutes=$(( hour * 60 + minute ))
+    local current_minutes=$(( current_hour * 60 + current_minute ))
+    local duration_minutes=$(( target_minutes - current_minutes ))
+
+    # If target time is earlier than current time, add 24 hours
+    [[ $duration_minutes -lt 0 ]] && duration_minutes=$(( duration_minutes + 1440 ))
+
+    # Start the session
+    start_amphetamine_session "$duration_minutes" "$allow_display_sleep"
+
+    # Format the time for display
+    local display_time
+    if [[ "${alfred_time_format:-a}" == "a" ]]; then
+        display_time=$(date -j -f "%H:%M" "${hour}:${minute}" "+%l:%M %p" 2>/dev/null | sed 's/^ //')
+    else
+        display_time="${hour}:${minute}"
+    fi
+
+    if [[ "$allow_display_sleep" == "true" ]]; then
+        echo "Keeping awake until ${display_time}. (Display can sleep)"
+    else
+        echo "Keeping awake until ${display_time}."
+    fi
+}
+
+# Function to start an indefinite Amphetamine session
 start_indefinite_session() {
     local allow_display_sleep=$1
 
@@ -210,19 +86,17 @@ main() {
     # Default value for display_sleep_allow if not set
     display_sleep_allow=${display_sleep_allow:-false}
 
-    # Check direct input for "indefinite" or parse the input
-    if [[ "$INPUT" == "indefinite" ]]; then
+    # Handle different input types from the Filter Script
+    if [[ "$INPUT" == "0" ]]; then
+        echo "Error: Invalid input. Please provide a valid duration."
+        exit 1
+    elif [[ "$INPUT" == "indefinite" ]]; then
         start_indefinite_session "$display_sleep_allow"
-        exit 0
-    fi
-
-    local total_minutes=$(parse_input "$INPUT")
-
-    if [[ "$total_minutes" == "indefinite" ]]; then
-        start_indefinite_session "$display_sleep_allow"
-    elif [[ "$total_minutes" -gt 0 ]]; then
-        local end_time=$(calculate_end_time "$total_minutes")
-        start_amphetamine_session "$total_minutes" "$display_sleep_allow"
+    elif [[ "$INPUT" == TIME:* ]]; then
+        start_amphetamine_target_time "$INPUT" "$display_sleep_allow"
+    elif [[ "$INPUT" =~ ^[0-9]+$ ]]; then
+        local end_time=$(calculate_end_time "$INPUT")
+        start_amphetamine_session "$INPUT" "$display_sleep_allow"
 
         if [[ "$display_sleep_allow" == "true" ]]; then
             echo "Keeping awake until around $end_time. (Display can sleep)"
