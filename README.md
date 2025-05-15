@@ -50,7 +50,3 @@ This single command replaces the previous `amh` and `amh + Option` commands, sim
 ### Customization
 
 Both `dose` and `ams` commands can be customized in the workflow settings. You can modify their keywords or behavior to better suit your needs.
-
----
-
-This workflow provides an easy and flexible way to control Amphetamine directly from Alfred. Enjoy!
