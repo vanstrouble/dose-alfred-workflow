@@ -2,10 +2,10 @@
 
 Control the [Amphetamine app](https://apps.apple.com/us/app/amphetamine/id937984704?mt=12) straight from Alfred — start or stop sessions and set how long your Mac should stay awake, all without lifting your hands from the keyboard.
 
-## Install
+## Download
 
 - Available on the Alfred Gallery. Get it [here](https://alfred.app/workflows/vanstrouble/amphetamine-dose/).
-- You can also download it from GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases).
+- You can also download it from GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases/latest).
 
 **Not a fan of fancy extras? Go native with _Caffeine Dose_ — it runs on `caffeinate`, no sugar, no cream. Just pure workflow. [Try it here](https://github.com/vanstrouble/caffeine-dose-alfred-workflow.git).**
 
@@ -17,9 +17,9 @@ Control the [Amphetamine app](https://apps.apple.com/us/app/amphetamine/id937984
 
 Use the `dose` keyword to toggle Amphetamine on or off, preventing macOS from sleeping.
 
-**Keyword:** `dose`
+- **Keyword:** `dose`
 
-If you hold the Command key while using the `dose` command, the session will allow the display to sleep.
+Hold the **Command (⌘)** key while using the `dose` command, the session will allow the display to sleep.
 
 ### One command for everything (ams)
 
@@ -27,9 +27,9 @@ If you hold the Command key while using the `dose` command, the session will all
 
 The `ams` command allows you to set Amphetamine to keep your Mac awake for a specific duration or until a specific time. It supports natural input formats for minutes, hours, and specific times, making it flexible and easy to use.
 
-**Keyword:** `ams [duration or time]`
+- **Keyword:** `ams [duration or time]`
 
-If you hold the Command key while using the `ams` command, the session will allow the display to sleep.
+Hold the **Command (⌘)** key while using the `ams` command, the session will allow the display to sleep.
 
 #### Examples:
 
@@ -44,8 +44,6 @@ If you hold the Command key while using the `ams` command, the session will allo
 | `ams 11:40pm` | Keeps your Mac awake until 11:40 PM.        |
 
 The `ams` command supports both 12-hour (AM/PM) and 24-hour time formats.
-
-This single command replaces the previous `amh` and `amh + Option` commands, simplifying the workflow while adding more flexibility.
 
 ### Customization
 
