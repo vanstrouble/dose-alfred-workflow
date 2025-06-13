@@ -4,8 +4,8 @@ Control the [Amphetamine app](https://apps.apple.com/us/app/amphetamine/id937984
 
 ## Download
 
-- Available on the Alfred Gallery. Get it [here](https://alfred.app/workflows/vanstrouble/amphetamine-dose/).
-- You can also download it from GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases/latest).
+- Available on the Alfred Gallery. [Get it here](https://alfred.app/workflows/vanstrouble/amphetamine-dose/).
+- You can also download it directly from GitHub [here](https://github.com/vanstrouble/dose-alfred-workflow/releases/latest).
 
 **Not a fan of fancy extras? Go native with _Caffeine Dose_ — it runs on `caffeinate`, no sugar, no cream. Just pure workflow. [Try it here](https://github.com/vanstrouble/caffeine-dose-alfred-workflow.git).**
 
