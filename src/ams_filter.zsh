@@ -49,22 +49,11 @@ get_nearest_future_time() {
     fi
 }
 
-# Helper function to format hours with leading zero
-format_hour() {
-    local hour=$1
-    # Ensure hour is a number without leading zeros
-    hour=${hour#0}
-    [[ -z "$hour" ]] && hour=0
-    [[ "$hour" -lt 10 ]] && echo "0$hour" || echo "$hour"
-}
-
-# Helper function to format minutes with leading zero
-format_minute() {
-    local minute=$1
-    # Ensure minute is a number without leading zeros
-    minute=${minute#0}
-    [[ -z "$minute" ]] && minute=0
-    [[ "$minute" -lt 10 ]] && echo "0$minute" || echo "$minute"
+# Add leading zero to single digit numbers
+pad_zero() {
+    local num=${1#0}
+    [[ -z "$num" ]] && num=0
+    [[ "$num" -lt 10 ]] && echo "0$num" || echo "$num"
 }
 
 # Helper function to convert AM/PM hour to 24-hour format
@@ -95,8 +84,8 @@ calculate_future_time() {
     local future_minute=$(( (total_minutes + current_hour * 60 + current_minute) % 60 ))
 
     # Format with leading zeros (after removing any existing leading zeros)
-    future_hour=$(format_hour "$future_hour")
-    future_minute=$(format_minute "$future_minute")
+    future_hour=$(pad_zero "$future_hour")
+    future_minute=$(pad_zero "$future_minute")
 
     echo "TIME:$future_hour:$future_minute"
 }
@@ -109,6 +98,9 @@ parse_input() {
 
     # Early return for invalid input when empty
     [[ -z "${input[1]}" ]] && echo "0" && return
+
+    # Check for status command
+    [[ "${input[1]}" == "s" ]] && echo "status" && return
 
     # Handle single input cases with early returns
     if [[ "${#input[@]}" -eq 1 ]]; then
@@ -164,7 +156,7 @@ parse_input() {
                 hour=$(convert_to_24h_format "$hour" "$ampm")
 
                 # Format hour with leading zero
-                hour=$(format_hour "$hour")
+                hour=$(pad_zero "$hour")
                 echo "TIME:$hour:00"
             else
                 # Without AM/PM, use nearest future time
@@ -186,8 +178,8 @@ parse_input() {
                 hour=$(convert_to_24h_format "$hour" "$ampm")
 
                 # Format output with leading zeros
-                hour=$(format_hour "$hour")
-                minute=$(format_minute "$minute")
+                hour=$(pad_zero "$hour")
+                minute=$(pad_zero "$minute")
                 echo "TIME:$hour:$minute"
             else
                 # Without explicit AM/PM, calculate future time
@@ -249,6 +241,12 @@ generate_output() {
     # Check for indefinite mode (no rerun needed)
     if [[ "$input_result" == "indefinite" ]]; then
         echo '{"items":[{"title":"Active indefinitely","subtitle":"Keep your Mac awake until manually disabled","arg":"indefinite","icon":{"path":"icon.png"}}]}'
+        return
+    fi
+
+    # Check for status command
+    if [[ "$input_result" == "status" ]]; then
+        check_status
         return
     fi
 
