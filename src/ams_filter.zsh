@@ -95,6 +95,11 @@ get_amphetamine_time_remaining() {
     osascript -e 'tell application "Amphetamine" to get session time remaining' 2>/dev/null
 }
 
+# Function to get Amphetamine display sleep status
+get_amphetamine_display_sleep_status() {
+    osascript -e 'tell application "Amphetamine" to get display sleep allowed' 2>/dev/null
+}
+
 # Function to get Amphetamine status data
 check_status() {
     # Get Amphetamine session information
@@ -105,6 +110,18 @@ check_status() {
     if [[ $? -ne 0 || -z "$time_remaining" ]]; then
         echo "DEACTIVATED|Run a command to start an Amphetamine session|false"
         return
+    fi
+
+    # Get display sleep status for active sessions
+    local display_sleep_allowed=""
+    local display_status=""
+    if [[ "$time_remaining" != "-3" ]]; then
+        display_sleep_allowed=$(get_amphetamine_display_sleep_status)
+        if [[ "$display_sleep_allowed" == "true" ]]; then
+            display_status=" - Display can sleep"
+        else
+            display_status=" - Display stays awake"
+        fi
     fi
 
     local title=""
@@ -122,7 +139,7 @@ check_status() {
             # Indefinite session - for indefinite sessions, we don't need elapsed time
             # since we can't calculate it reliably without additional API calls
             title="Amphetamine active indefinitely"
-            subtitle="Session running indefinitely"
+            subtitle="Session running indefinitely${display_status}"
             needs_rerun="false"  # No need for frequent updates on indefinite sessions
             ;;
         [1-9]*)
@@ -143,22 +160,22 @@ check_status() {
 
             # Format remaining time naturally (similar to format_duration logic)
             if [[ $time_remaining -lt 60 ]]; then
-                subtitle="${time_remaining}s remaining"
+                subtitle="${time_remaining}s remaining${display_status}"
             elif [[ $time_remaining -lt 3600 ]]; then
                 local minutes=$(( time_remaining / 60 ))
                 local seconds=$(( time_remaining % 60 ))
                 if [[ $seconds -eq 0 ]]; then
-                    subtitle="${minutes}m remaining"
+                    subtitle="${minutes}m remaining${display_status}"
                 else
-                    subtitle="${minutes}m ${seconds}s remaining"
+                    subtitle="${minutes}m ${seconds}s remaining${display_status}"
                 fi
             else
                 local hours=$(( time_remaining / 3600 ))
                 local minutes=$(( (time_remaining % 3600) / 60 ))
                 if [[ $minutes -eq 0 ]]; then
-                    subtitle="${hours}h remaining"
+                    subtitle="${hours}h remaining${display_status}"
                 else
-                    subtitle="${hours}h ${minutes}m remaining"
+                    subtitle="${hours}h ${minutes}m remaining${display_status}"
                 fi
             fi
 
