@@ -90,6 +90,91 @@ calculate_future_time() {
     echo "TIME:$future_hour:$future_minute"
 }
 
+# Function to get Amphetamine session time remaining
+get_amphetamine_time_remaining() {
+    osascript -e 'tell application "Amphetamine" to get session time remaining' 2>/dev/null
+}
+
+# Function to get Amphetamine status data
+check_status() {
+    # Get Amphetamine session information
+    local time_remaining
+    time_remaining=$(get_amphetamine_time_remaining)
+
+    # Handle case where Amphetamine is not running or command fails
+    if [[ $? -ne 0 || -z "$time_remaining" ]]; then
+        echo "DEACTIVATED|Run a command to start an Amphetamine session|false"
+        return
+    fi
+
+    local title=""
+    local subtitle=""
+    local needs_rerun="false"
+
+    case "$time_remaining" in
+        -3)
+            # No active session
+            title="Amphetamine deactivated"
+            subtitle="Run a command to start an Amphetamine session"
+            needs_rerun="false"
+            ;;
+        0)
+            # Indefinite session - for indefinite sessions, we don't need elapsed time
+            # since we can't calculate it reliably without additional API calls
+            title="Amphetamine active indefinitely"
+            subtitle="Session running indefinitely"
+            needs_rerun="false"  # No need for frequent updates on indefinite sessions
+            ;;
+        [1-9]*)
+            # Timed session - calculate end time and format remaining time efficiently
+            # Single date call to get both current timestamp and formatted end time
+            local date_output
+            if [[ "${alfred_time_format:-a}" == "a" ]]; then
+                # Get current timestamp and calculate end time in one operation
+                date_output=$(date "+%s|$(date -v+"$time_remaining"S "+%l:%M %p" | sed 's/^ //')")
+            else
+                date_output=$(date "+%s|$(date -v+"$time_remaining"S "+%H:%M")")
+            fi
+
+            local current_timestamp=${date_output%%|*}
+            local end_time=${date_output#*|}
+
+            title="Amphetamine active until $end_time"
+
+            # Format remaining time naturally (similar to format_duration logic)
+            if [[ $time_remaining -lt 60 ]]; then
+                subtitle="${time_remaining}s remaining"
+            elif [[ $time_remaining -lt 3600 ]]; then
+                local minutes=$(( time_remaining / 60 ))
+                local seconds=$(( time_remaining % 60 ))
+                if [[ $seconds -eq 0 ]]; then
+                    subtitle="${minutes}m remaining"
+                else
+                    subtitle="${minutes}m ${seconds}s remaining"
+                fi
+            else
+                local hours=$(( time_remaining / 3600 ))
+                local minutes=$(( (time_remaining % 3600) / 60 ))
+                if [[ $minutes -eq 0 ]]; then
+                    subtitle="${hours}h remaining"
+                else
+                    subtitle="${hours}h ${minutes}m remaining"
+                fi
+            fi
+
+            # Smart rerun: only for sessions under 2 hours for better performance
+            if [[ $time_remaining -le 7200 ]]; then
+                needs_rerun="true"
+            else
+                needs_rerun="false"
+            fi
+            ;;
+    esac
+
+    # Return structured data: title|subtitle|needs_rerun
+    echo "$title|$subtitle|$needs_rerun"
+}
+
 # Function to parse the input and calculate the total minutes
 parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
@@ -246,7 +331,21 @@ generate_output() {
 
     # Check for status command
     if [[ "$input_result" == "status" ]]; then
-        check_status
+        local status_data=$(check_status)
+        local title=${status_data%%|*}
+        local remaining=${status_data#*|}
+        local subtitle=${remaining%%|*}
+        local needs_rerun=${status_data##*|}
+
+        # Escape JSON special characters
+        title=${title//\"/\\\"}
+        subtitle=${subtitle//\"/\\\"}
+
+        # Generate JSON with conditional rerun
+        local rerun_part=""
+        [[ "$needs_rerun" == "true" ]] && rerun_part='"rerun":1,'
+
+        echo '{'${rerun_part}'"items":[{"title":"'"$title"'","subtitle":"'"$subtitle"'","arg":"status","icon":{"path":"icon.png"}}]}'
         return
     fi
 
