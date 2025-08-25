@@ -160,27 +160,27 @@ check_status() {
 
             # Format remaining time naturally (similar to format_duration logic)
             if [[ $time_remaining -lt 60 ]]; then
-                subtitle="${time_remaining}s remaining${display_status}"
+                subtitle="${time_remaining}s left${display_status}"
             elif [[ $time_remaining -lt 3600 ]]; then
                 local minutes=$(( time_remaining / 60 ))
                 local seconds=$(( time_remaining % 60 ))
                 if [[ $seconds -eq 0 ]]; then
-                    subtitle="${minutes}m remaining${display_status}"
+                    subtitle="${minutes}m left${display_status}"
                 else
-                    subtitle="${minutes}m ${seconds}s remaining${display_status}"
+                    subtitle="${minutes}m ${seconds}s left${display_status}"
                 fi
             else
                 local hours=$(( time_remaining / 3600 ))
                 local minutes=$(( (time_remaining % 3600) / 60 ))
                 if [[ $minutes -eq 0 ]]; then
-                    subtitle="${hours}h remaining${display_status}"
+                    subtitle="${hours}h left${display_status}"
                 else
-                    subtitle="${hours}h ${minutes}m remaining${display_status}"
+                    subtitle="${hours}h ${minutes}m left${display_status}"
                 fi
             fi
 
-            # Smart rerun: only for sessions under 2 hours for better performance
-            if [[ $time_remaining -le 7200 ]]; then
+            # Smart rerun: only for sessions under 1 hour for better performance
+            if [[ $time_remaining -le 3600 ]]; then
                 needs_rerun="true"
             else
                 needs_rerun="false"
@@ -322,11 +322,27 @@ format_duration() {
     local minutes=$(( total_minutes % 60 ))
 
     if [[ "$hours" -gt 0 && "$minutes" -gt 0 ]]; then
-        echo "$hours hour(s) $minutes minute(s)"
+        if [[ "$hours" -eq 1 && "$minutes" -eq 1 ]]; then
+            echo "1 hour 1 minute"
+        elif [[ "$hours" -eq 1 ]]; then
+            echo "1 hour $minutes minutes"
+        elif [[ "$minutes" -eq 1 ]]; then
+            echo "$hours hours 1 minute"
+        else
+            echo "$hours hours $minutes minutes"
+        fi
     elif [[ "$hours" -gt 0 ]]; then
-        echo "$hours hour(s)"
+        if [[ "$hours" -eq 1 ]]; then
+            echo "1 hour"
+        else
+            echo "$hours hours"
+        fi
     else
-        echo "$minutes minute(s)"
+        if [[ "$minutes" -eq 1 ]]; then
+            echo "1 minute"
+        else
+            echo "$minutes minutes"
+        fi
     fi
 }
 
