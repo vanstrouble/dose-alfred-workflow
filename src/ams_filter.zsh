@@ -113,42 +113,34 @@ check_status() {
         return
     fi
 
-    # Get display sleep status for active sessions
-    local display_sleep_allowed=""
-    local display_status=""
-    if [[ "$time_remaining" != "-3" ]]; then
-        display_sleep_allowed=$(get_amphetamine_display_sleep_status)
-        if [[ "$display_sleep_allowed" == "true" ]]; then
-            display_status=" - Display can sleep"
-        else
-            display_status=" - Display stays awake"
-        fi
-    fi
-
     local title=""
     local subtitle=""
     local needs_rerun="false"
 
     case "$time_remaining" in
         -3)
-            # No active session
+            # No active session - no need for display status call
             title="Amphetamine deactivated"
             subtitle="Run a command to start an Amphetamine session"
             needs_rerun="false"
             ;;
         0)
-            # Indefinite session - for indefinite sessions, we don't need elapsed time
-            # since we can't calculate it reliably without additional API calls
+            # Indefinite session - get display status only once here
             title="Amphetamine active indefinitely"
-            subtitle="Session running indefinitely${display_status}"
+
+            # Get display status and format in one operation
+            local display_sleep_allowed=$(get_amphetamine_display_sleep_status)
+            if [[ "$display_sleep_allowed" == "true" ]]; then
+                subtitle="Session running indefinitely - Display can sleep"
+            else
+                subtitle="Session running indefinitely - Display stays awake"
+            fi
             needs_rerun="false"  # No need for frequent updates on indefinite sessions
             ;;
         [1-9]*)
-            # Timed session - calculate end time and format remaining time efficiently
-            # Single date call to get both current timestamp and formatted end time
+            # Timed session - calculate end time efficiently
             local end_time
             if [[ "${alfred_time_format:-a}" == "a" ]]; then
-                # Use parameter expansion to remove leading space instead of sed
                 local time_output=$(date -v+"$time_remaining"S "+%l:%M %p")
                 end_time="${time_output# }"
             else
@@ -157,28 +149,36 @@ check_status() {
 
             title="Amphetamine active until $end_time"
 
-            # Format remaining time naturally (similar to format_duration logic)
+            # Format remaining time with efficient conditionals
             if [[ $time_remaining -lt 60 ]]; then
-                subtitle="${time_remaining}s left${display_status}"
+                subtitle="${time_remaining}s left"
             elif [[ $time_remaining -lt 3600 ]]; then
                 local minutes=$(( time_remaining / 60 ))
                 local seconds=$(( time_remaining % 60 ))
                 if [[ $seconds -eq 0 ]]; then
-                    subtitle="${minutes}m left${display_status}"
+                    subtitle="${minutes}m left"
                 else
-                    subtitle="${minutes}m ${seconds}s left${display_status}"
+                    subtitle="${minutes}m ${seconds}s left"
                 fi
             else
                 local hours=$(( time_remaining / 3600 ))
                 local minutes=$(( (time_remaining % 3600) / 60 ))
                 if [[ $minutes -eq 0 ]]; then
-                    subtitle="${hours}h left${display_status}"
+                    subtitle="${hours}h left"
                 else
-                    subtitle="${hours}h ${minutes}m left${display_status}"
+                    subtitle="${hours}h ${minutes}m left"
                 fi
             fi
 
-            # Smart rerun: only for sessions under 1 hour for better performance
+            # Append display status efficiently
+            local display_sleep_allowed=$(get_amphetamine_display_sleep_status)
+            if [[ "$display_sleep_allowed" == "true" ]]; then
+                subtitle="${subtitle} - Display can sleep"
+            else
+                subtitle="${subtitle} - Display stays awake"
+            fi
+
+            # Smart rerun logic
             if [[ $time_remaining -le 3600 ]]; then
                 needs_rerun="true"
             else
