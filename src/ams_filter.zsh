@@ -4,11 +4,12 @@
 calculate_end_time() {
     local minutes=$1
 
-    # Check Alfred variable for time format preference
+    # Check Alfred variable for time format preference and calculate in single call
     # 'a' is 12-hour format, 'b' is 24-hour format
     if [[ "${alfred_time_format:-a}" == "a" ]]; then
-        # 12-hour format with AM/PM including seconds
-        date -v+"$minutes"M +"%l:%M:%S %p" | sed 's/^ //'
+        # 12-hour format with AM/PM including seconds - avoid pipe and sed
+        local time_output=$(date -v+"$minutes"M +"%l:%M:%S %p")
+        echo "${time_output# }"  # Remove leading space with parameter expansion
     else
         # 24-hour format including seconds
         date -v+"$minutes"M +"%H:%M:%S"
@@ -145,16 +146,14 @@ check_status() {
         [1-9]*)
             # Timed session - calculate end time and format remaining time efficiently
             # Single date call to get both current timestamp and formatted end time
-            local date_output
+            local end_time
             if [[ "${alfred_time_format:-a}" == "a" ]]; then
-                # Get current timestamp and calculate end time in one operation
-                date_output=$(date "+%s|$(date -v+"$time_remaining"S "+%l:%M %p" | sed 's/^ //')")
+                # Use parameter expansion to remove leading space instead of sed
+                local time_output=$(date -v+"$time_remaining"S "+%l:%M %p")
+                end_time="${time_output# }"
             else
-                date_output=$(date "+%s|$(date -v+"$time_remaining"S "+%H:%M")")
+                end_time=$(date -v+"$time_remaining"S "+%H:%M")
             fi
-
-            local current_timestamp=${date_output%%|*}
-            local end_time=${date_output#*|}
 
             title="Amphetamine active until $end_time"
 
@@ -405,8 +404,12 @@ generate_output() {
         local minute=${target_time#*:}
 
         # To display the time in a user-friendly format
-        local display_time=$(date -j -f "%H:%M" "$target_time" "+%l:%M %p" 2>/dev/null | sed 's/^ //')
-        [[ $? -ne 0 ]] && display_time="$target_time"
+        local time_output=$(date -j -f "%H:%M" "$target_time" "+%l:%M %p" 2>/dev/null)
+        if [[ $? -eq 0 ]]; then
+            local display_time="${time_output# }"  # Remove leading space with parameter expansion
+        else
+            local display_time="$target_time"
+        fi
 
         echo '{"items":[{"title":"Active until '"$display_time"'","subtitle":"Keep awake until specified time","arg":"'"$input_result"'","icon":{"path":"icon.png"}}]}'
         return
