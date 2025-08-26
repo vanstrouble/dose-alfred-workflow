@@ -195,14 +195,17 @@ check_status() {
 # Function to parse the input and calculate the total minutes
 parse_input() {
     local input=(${(@s/ /)1})  # Split the input into parts
-    local current_hour=$(date +"%H")
-    local current_minute=$(date +"%M")
 
     # Early return for invalid input when empty
     [[ -z "${input[1]}" ]] && echo "0" && return
 
     # Check for status command
     [[ "${input[1]}" == "s" ]] && echo "status" && return
+
+    # Get current time in a single call - only when needed for time calculations
+    local current_time_data=""
+    local current_hour=""
+    local current_minute=""
 
     # Handle single input cases with early returns
     if [[ "${#input[@]}" -eq 1 ]]; then
@@ -223,16 +226,20 @@ parse_input() {
 
         # Format: 8 or 8: (hour only)
         if [[ "${input[1]}" =~ ^([0-9]{1,2}):?$ ]]; then
-            local hour=${match[1]}
-            local minute=0
+            # Get current time only when needed
+            [[ -z "$current_hour" ]] && {
+                current_time_data=$(date +"%H:%M")
+                current_hour=${current_time_data%:*}
+                current_minute=${current_time_data#*:}
+            }
 
-            # Parameter expansion is more efficient than sed
-            hour=${hour#0}
+            local hour=${match[1]#0}  # Remove leading zero inline
+            [[ -z "$hour" ]] && hour=0
 
             # Check if the input has a colon at the end
             if [[ "${input[1]}" =~ :$ ]]; then
                 # If it has a colon, calculate specific time
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                local total_minutes=$(get_nearest_future_time "$hour" "0" "$current_hour" "$current_minute")
 
                 # Use helper function to calculate future time
                 local future_time=$(calculate_future_time "$total_minutes" "$current_hour" "$current_minute")
@@ -240,7 +247,7 @@ parse_input() {
                 echo "${future_time%:*}:00"
             else
                 # No colon, return minutes
-                local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                local total_minutes=$(get_nearest_future_time "$hour" "0" "$current_hour" "$current_minute")
                 echo "$total_minutes"
             fi
             return
@@ -250,7 +257,6 @@ parse_input() {
         if [[ "${input[1]}" =~ ^([0-9]{1,2})([aApP])?(m)?$ ]]; then
             local hour=${match[1]}
             local ampm=${match[2]:-""}
-            local minute=0
 
             # With AM/PM indicator
             if [[ -n "$ampm" ]]; then
@@ -261,9 +267,14 @@ parse_input() {
                 hour=$(pad_zero "$hour")
                 echo "TIME:$hour:00"
             else
-                # Without AM/PM, use nearest future time
+                # Without AM/PM, use nearest future time - need current time
+                [[ -z "$current_hour" ]] && {
+                    current_time_data=$(date +"%H:%M")
+                    current_hour=${current_time_data%:*}
+                    current_minute=${current_time_data#*:}
+                }
                 hour=${hour#0}
-                echo $(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
+                echo $(get_nearest_future_time "$hour" "0" "$current_hour" "$current_minute")
             fi
             return
         fi
@@ -284,7 +295,12 @@ parse_input() {
                 minute=$(pad_zero "$minute")
                 echo "TIME:$hour:$minute"
             else
-                # Without explicit AM/PM, calculate future time
+                # Without explicit AM/PM, calculate future time - need current time
+                [[ -z "$current_hour" ]] && {
+                    current_time_data=$(date +"%H:%M")
+                    current_hour=${current_time_data%:*}
+                    current_minute=${current_time_data#*:}
+                }
                 hour=${hour#0}
                 local total_minutes=$(get_nearest_future_time "$hour" "$minute" "$current_hour" "$current_minute")
 
