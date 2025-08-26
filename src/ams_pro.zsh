@@ -1,13 +1,14 @@
-#!/bin/bash
+#!/bin/zsh --no-rcs
 
 # Function to calculate the end time based on the given minutes
 calculate_end_time() {
     local minutes=$1
 
-    # Check Alfred variable for time format preference
+    # Check Alfred variable for time format preference and calculate in single call
     if [[ "${alfred_time_format:-a}" == "a" ]]; then
-        # 12-hour format with AM/PM
-        date -v+"$minutes"M +"%l:%M %p" | sed 's/^ //'
+        # 12-hour format with AM/PM - avoid pipe and sed
+        local time_output=$(date -v+"$minutes"M +"%l:%M %p")
+        echo "${time_output# }"  # Remove leading space with parameter expansion
     else
         # 24-hour format
         date -v+"$minutes"M +"%H:%M"
@@ -40,11 +41,12 @@ calculate_minutes_until_target() {
     local hour=$1
     local minute=$2
 
-    # Get current time
-    local current_hour=$(date +"%H")
-    local current_minute=$(date +"%M")
+    # Get current time in single call for efficiency
+    local current_time_data=$(date +"%H:%M")
+    local current_hour=${current_time_data%:*}
+    local current_minute=${current_time_data#*:}
 
-    # Calculate total minutes
+    # Calculate total minutes efficiently
     local target_minutes=$(( hour * 60 + minute ))
     local current_minutes=$(( current_hour * 60 + current_minute ))
     local duration_minutes=$(( target_minutes - current_minutes ))
@@ -55,69 +57,61 @@ calculate_minutes_until_target() {
     echo "$duration_minutes"
 }
 
-# Function to format time for display
+# Function to format time for display - optimized with parameter expansion
 format_display_time() {
     local hour=$1
     local minute=$2
     local time_format=${3:-a}
 
-    local display_time
+    # Ensure minute has leading zero using printf for efficiency
+    local formatted_minute=$(printf "%02d" "$minute")
 
     if [[ "$time_format" == "a" ]]; then
-        # 12-hour format
-        if [[ "$hour" -gt 12 ]]; then
-            display_time="$((hour-12)):${minute} PM"
-        elif [[ "$hour" -eq 12 ]]; then
-            display_time="12:${minute} PM"
-        elif [[ "$hour" -eq 0 ]]; then
-            display_time="12:${minute} AM"
+        # 12-hour format with efficient conditionals
+        if [[ $hour -gt 12 ]]; then
+            echo "$((hour-12)):${formatted_minute} PM"
+        elif [[ $hour -eq 12 ]]; then
+            echo "12:${formatted_minute} PM"
+        elif [[ $hour -eq 0 ]]; then
+            echo "12:${formatted_minute} AM"
         else
-            display_time="${hour}:${minute} AM"
+            echo "${hour}:${formatted_minute} AM"
         fi
-
-        # Ensure minutes have leading zero if needed
-        [[ ${#minute} -eq 1 ]] && display_time="${display_time/\:$minute/\:0$minute}"
     else
-        # 24-hour format
-        [[ ${#hour} -eq 1 ]] && hour="0$hour"
-        [[ ${#minute} -eq 1 ]] && minute="0$minute"
-        display_time="${hour}:${minute}"
+        # 24-hour format with leading zeros
+        local formatted_hour=$(printf "%02d" "$hour")
+        echo "${formatted_hour}:${formatted_minute}"
     fi
-
-    echo "$display_time"
 }
 
-# Function to print output message based on display sleep setting
+# Function to generate output message based on display sleep setting
 output_message() {
     local message=$1
     local approximate=$2
     local allow_display_sleep=$3
 
+    # Build message components efficiently
     local prefix="Keeping awake"
+    local time_part
     local suffix
 
+    # Handle different message types
+    if [[ "$message" == "indefinitely" ]]; then
+        time_part="indefinitely"
+    elif [[ "$approximate" == "true" ]]; then
+        time_part="until around $message"
+    else
+        time_part="until $message"
+    fi
+
+    # Handle display sleep status
     if [[ "$allow_display_sleep" == "true" ]]; then
         suffix=". (Display can sleep)"
     else
         suffix="."
     fi
 
-    if [[ -n "$approximate" && "$approximate" == "true" ]]; then
-        echo "${prefix} until around ${message}${suffix}"
-    else
-        echo "${prefix} until ${message}${suffix}"
-    fi
-}
-
-# Function to print indefinite output message based on display sleep setting
-output_indefinite_message() {
-    local allow_display_sleep=$1
-
-    if [[ "$allow_display_sleep" == "true" ]]; then
-        echo "Keeping awake indefinitely. (Display can sleep)"
-    else
-        echo "Keeping awake indefinitely."
-    fi
+    echo "${prefix} ${time_part}${suffix}"
 }
 
 # Function to start an Amphetamine session with minutes
@@ -146,7 +140,7 @@ start_indefinite_session() {
         exit 1
     }
 
-    output_indefinite_message "$allow_display_sleep"
+    output_message "indefinitely" "false" "$allow_display_sleep"
 }
 
 # Function to handle target time input
@@ -187,20 +181,34 @@ handle_duration() {
 
 # Main function
 main() {
-    # Default value for display_sleep_allow if not set
-    display_sleep_allow=${display_sleep_allow:-false}
-
-    # Handle different input types from the Filter Script
+    # Early return for invalid input
     if [[ "$INPUT" == "0" ]]; then
         echo "Error: Invalid input. Please provide a valid duration."
         exit 1
-    elif [[ "$INPUT" == "indefinite" ]]; then
-        start_indefinite_session "$display_sleep_allow"
-    elif [[ "$INPUT" == TIME:* ]]; then
-        handle_target_time "$INPUT" "$display_sleep_allow"
-    elif [[ "$INPUT" =~ ^[0-9]+$ ]]; then
-        handle_duration "$INPUT" "$display_sleep_allow"
     fi
+
+    # Default value for display_sleep_allow if not set
+    local display_sleep_allow=${display_sleep_allow:-false}
+
+    # Handle different input types from the Filter Script with early returns
+    if [[ "$INPUT" == "indefinite" ]]; then
+        start_indefinite_session "$display_sleep_allow"
+        return
+    fi
+
+    if [[ "$INPUT" == TIME:* ]]; then
+        handle_target_time "$INPUT" "$display_sleep_allow"
+        return
+    fi
+
+    if [[ "$INPUT" =~ ^[0-9]+$ ]]; then
+        handle_duration "$INPUT" "$display_sleep_allow"
+        return
+    fi
+
+    # If we get here, input is invalid
+    echo "Error: Invalid input format: $INPUT"
+    exit 1
 }
 
 INPUT="$1"
