@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh --no-rcs
 
 # Use hotkey_value if provided, otherwise use first argument
 INPUT="${hotkey_value:-$1}"
@@ -10,10 +10,8 @@ if [[ "$INPUT" == "off" ]]; then
     osascript -e "tell application \"Amphetamine\" to end session"
     echo "Amphetamine deactivated."
 elif [[ "$INPUT" == "on" ]]; then
-    # Use display_sleep_allow parameter only when turning on
     osascript -e "tell application \"Amphetamine\" to start new session with options {displaySleepAllowed:$display_sleep_allow}"
 
-    # Use parameter expansion for conditional message
     display_text=""
     [[ "$display_sleep_allow" == "true" ]] && display_text=" (display can sleep)"
     echo "Amphetamine activated${display_text}."
